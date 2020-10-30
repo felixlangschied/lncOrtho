@@ -4,3 +4,13 @@
 /andreas/createcm.py
 /andreas/genparser.py
 /andreas/ncortho.py
+/testruns/
+/testruns/alirna.ps
+/testruns/Mesocricetus_auratus.rfold
+/testruns/mmu-mir-674.rfold
+/testruns/mmu-mir-674_core.dnd
+/testruns/mmu-mir-674_core_rfold1.template_list
+/testruns/Rattus_norvegicus.rfold
+/testruns/test_gtf_parser.py
+/testruns/testrun_coreset.py
+/testruns/testrun_ncOrtho.py

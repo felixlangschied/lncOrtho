@@ -359,7 +359,15 @@ def main():
     print('### Synteny Analysis ###')
     print('#########################')
 
+    if not neighbor_dict:
+        print(
+            "Not enough orthologs found in the core species for synteny analysis.\n"
+            "Exiting..."
+        )
+        sys.exit()
+
     # Search for the coordinates of the orthologs and extract the sequences
+    #if not neighbor_dict =
     for taxon in neighbor_dict:  # neighbor_dict = {'Core_taxon': {mirnaID: ('category', [geneIDleft, geneIDright])}
         print('\nStarting synteny analysis for {}'.format(taxon))
         gtf_path = '{0}/{1}.gtf'.format(core_gtf_paths, taxon)
@@ -482,7 +490,9 @@ def main():
             print('No GTF file found for {}'.format(taxon))
             continue
 
-    def write_output():
+
+
+    def write_fasta():
         for mirna in mirna_dict:
             with open('{0}/{1}/{1}.fa'.format(output, mirna), 'w') as outfile:
                 for core_taxon in mirna_dict[mirna]:
@@ -492,23 +502,40 @@ def main():
                     )
 
     # write fasta format output of candidate regions of each miRNA in each core species
-    write_output()
+    write_fasta()
 
     print('\n#########################')
     print('### Reciprocal BLAST ###')
     print('#########################\n')
 
-    # calculate and write results of reciprocal BLAST search
-    BlastSearch(mirna_path, ref_genome, output, cpu)
+    noHits = []
+    for mirna in mirnas:
+        mirid = mirna[0]
+        if os.path.isfile('{0}/{1}/{1}.fa'.format(output, mirid)):
+            # calculate and write results of reciprocal BLAST search
+            BlastSearch(mirna, ref_genome, output, cpu)
+        else:
+            print("No Hits found for {}, skipping...".format(mirid))
+            noHits.append(mirid)
+
+    if noHits:
+        print('Saving names of  skipped ncRNAs at {}/noHits.txt'.format(output))
+        with open('{}/noHits.txt'.format(output),'w') as outfile:
+            outfile.write('\n'.join(noHits))
+            outfile.write('\n')
+        for fail in noHits:
+            rm_cmd = 'rm -r {0}/{1}'.format(output,fail)
+            sp.call(rm_cmd, shell=True)
+
 
     print('\n#########################')
     print('### Creating CMs ###')
     print('#########################\n')
 
-    cm_output = output + '/' + 'core_models'
-    for mirna in mirna_dict:
-        with open('{0}/{1}/{1}.sto'.format(output, mirna), 'r') as infile:
-            CreateCm(infile.name, cm_output, cpu)
+    # cm_output = output + '/' + 'core_models'
+    # for mirna in mirna_dict:
+    #     with open('{0}/{1}/{1}.sto'.format(output, mirna), 'r') as infile:
+    #         CreateCm(infile.name, cm_output, cpu)
 
 
 if __name__ == '__main__':
