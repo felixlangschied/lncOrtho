@@ -367,7 +367,6 @@ def main():
         sys.exit()
 
     # Search for the coordinates of the orthologs and extract the sequences
-    #if not neighbor_dict =
     for taxon in neighbor_dict:  # neighbor_dict = {'Core_taxon': {mirnaID: ('category', [geneIDleft, geneIDright])}
         print('\nStarting synteny analysis for {}'.format(taxon))
         gtf_path = '{0}/{1}.gtf'.format(core_gtf_paths, taxon)
@@ -431,28 +430,18 @@ def main():
                         # depending on the order of orthologs. The order of the orthologs in the core
                         # species might be inverted compared to that in the reference species.
                         ###############################################################################
-
                         # gtf_parser = gene_id: (contig_id,coordinate on contig)
                         # gtf_parser = contig_id: (coordinate: (gene_id,start,end,strand))
-
                         # left_data = (contig-id, coordinate on contig)
 
                         if left_data[1] < right_data[1]:
-                            # print('left')
                             contig = left_data[0]
-                            # print(core_gtf_dict[contig][left_data[1]]) # gene_id, start, end, strand
-                            # print(core_gtf_dict[contig][right_data[1]])
-
-                            # print(contig)
-
                             seq_start = (
                                 core_gtf_dict[contig][left_data[1]][2]
                             )
-                            # print(seq_start)
                             seq_end = (
                                 core_gtf_dict[right_data[0]][right_data[1]][1]
                             )
-                            # print(seq_end)
                             seq = genome[contig][seq_start - 1:seq_end].seq
                             try:
                                 mirna_dict[mirna][taxon] = seq
@@ -460,19 +449,13 @@ def main():
                                 mirna_dict[mirna] = {taxon: seq}
 
                         elif right_data[1] < left_data[1]:
-                            # print('right')
-                            # print(core_gtf_dict[right_data[0]][right_data[1]])
-                            # print(core_gtf_dict[left_data[0]][left_data[1]])
                             contig = left_data[0]
-                            # print(contig)
                             seq_end = (
                                 core_gtf_dict[left_data[0]][left_data[1]][2]
                             )
-                            # print(seq_start)
                             seq_start = (
                                 core_gtf_dict[right_data[0]][right_data[1]][1]
                             )
-                            # p rint(seq_end)
                             seq = genome[contig][seq_start - 1:seq_end].seq
                             try:
                                 mirna_dict[mirna][taxon] = seq
@@ -484,8 +467,6 @@ def main():
                             'No shared synteny for {} in {}.'
                             .format(mirna, taxon)
                         )
-                        # print(left_data)
-                        # print(right_data)
         except:
             print('No GTF file found for {}'.format(taxon))
             continue
@@ -532,11 +513,12 @@ def main():
     print('### Creating CMs ###')
     print('#########################\n')
 
-    # cm_output = output + '/' + 'core_models'
-    # for mirna in mirna_dict:
-    #     with open('{0}/{1}/{1}.sto'.format(output, mirna), 'r') as infile:
-    #         CreateCm(infile.name, cm_output, cpu)
-
+    cm_output = output + '/' + 'core_models'
+    for mirna in mirna_dict:
+        align_path = '{0}/{1}/{1}.sto'.format(output, mirna)
+        if os.path.isfile(align_path):
+            with open(align_path, 'r') as infile:
+                CreateCm(infile.name, cm_output, cpu)
 
 if __name__ == '__main__':
     main()
