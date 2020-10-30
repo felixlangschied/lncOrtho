@@ -11,7 +11,7 @@ version = sys.version.split()[0]
 gen_version = int(version.split('.')[0])
 
 # Perform reciprocal BLAST search and construct Stockholm alignment
-def BlastSearch(mirna, r_path, o_path, c):
+def blast_search(mirna, r_path, o_path, c):
     core_set = {}
 
     # create blastDB for the reference score, to calculate bit score threshold
