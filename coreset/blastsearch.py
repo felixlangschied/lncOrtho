@@ -246,7 +246,7 @@ def BlastSearch(mirna, r_path, o_path, c):
             '-output=clustalw_aln -outfile={} -newtree={} -remove_template_file=1'
             .format(t_coffee, c, corefile, alignment, outtree)
         )
-        sp.run(tc_cmd_1, shell=True)
+        sp.call(tc_cmd_1, shell=True)
 
         print('Adding secondary structure to Stockholm format.')
         tc_cmd_2 = (
@@ -254,7 +254,7 @@ def BlastSearch(mirna, r_path, o_path, c):
             'stockholm_aln -out {}'
             .format(t_coffee, alignment, stockholm)
         )
-        sp.run(tc_cmd_2, shell=True)
+        sp.call(tc_cmd_2, shell=True)
     else:
         print('Fasta file of candidate regions not found.')
 
