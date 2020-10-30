@@ -12,8 +12,8 @@ import glob
 import os
 import subprocess as sp
 import pyfaidx
-from blastsearch import BlastSearch
-from createcm_felix import CreateCm
+from blastsearch import blast_search
+from createcm_felix import create_cm
 
 
 # Parse a GTF file to store the coordinates for each protein-coding gene in a

@@ -7,7 +7,7 @@
 #      reverse BLAST search
 # lc: length cutoff
 # mirid: name/id of the microRNA
-def CmsearchParser(cms, cmc, lc, mirid):
+def cmsearch_parser(cms, cmc, lc, mirid):
     # Output
     hits_dict = {}
     # Required for finding duplicates, stores hits per chromosome

@@ -13,16 +13,36 @@ import subprocess as sp
 import sys
 
 # Internal ncOrtho modules
-from andreas.blastparser import BlastParser
-from andreas.genparser import GenomeParser
-from cmsearch_parser import CmsearchParser
+from blastparser_felix import BlastParser
+from genparser_felix import GenomeParser
+from cmsearch_parser import cmsearch_parser
 
 ###############################################################################
 
 
 # Central class of microRNA objects
+# class Mirna(object):
+#     def __init__(self, name, chromosome, start, end, strand, pre, bit):
+#         # miRNA identifier
+#         self.name = name
+#         # chromosome that the miRNA is located on
+#         self.chromosome = chromosome
+#         # start position of the pre-miRNA
+#         self.start = int(start)
+#         # end position of the pre-miRNA
+#         self.end = int(end)
+#         # sense (+) or anti-sense (-) strand
+#         self.strand = strand
+#         # nucleotide sequence of the pre-miRNA
+#         self.pre = pre
+#         # nucleotide sequence of the mature miRNA
+#         #self.mature = mature
+#         # reference bit score that miRNA receives by its own
+#         # covariance model
+#         self.bit = bit
+
 class Mirna(object):
-    def __init__(self, name, chromosome, start, end, strand, pre, bit):
+    def __init__(self, name, chromosome, start, end, strand):
         # miRNA identifier
         self.name = name
         # chromosome that the miRNA is located on
@@ -33,13 +53,12 @@ class Mirna(object):
         self.end = int(end)
         # sense (+) or anti-sense (-) strand
         self.strand = strand
-        # nucleotide sequence of the pre-miRNA
-        self.pre = pre
-        # nucleotide sequence of the mature miRNA
-        #self.mature = mature
-        # reference bit score that miRNA receives by its own
-        # covariance model
-        self.bit = bit
+
+    def loadSeq(self, seq, type):
+        if type == 'pre':
+            self.pre = seq
+        elif type == 'mat':
+            self.mat = seq
 # TODO: include both mature strands, 5p and 3p, aka mature and star
 
 
@@ -115,17 +134,22 @@ def mirna_maker(mirpath, cmpath, output, msl):
                 )
                 top_score = 0.0
 
-        mirna.append(top_score)
+        tmp_mir = Mirna(*mirna[0:5])
+        tmp_mir.bit = top_score
+        #add sequences
+        tmp_mir.loadSeq(mirna[5], 'pre')
+        if len(mirna) > 6:
+            tmp_mir.loadSeq(mirna[6], 'mat')
+        else:
+            tmp_mir.loadSeq(None, 'mat')
 
+        # Create output.
+        mmdict[mirna[0]] = tmp_mir
         # Remove temporary files.
         for rmv_file in [cms_output, cms_log, query]:
             sp.call('rm {}'.format(rmv_file), shell=True)
 
-        # Create output.
-        mmdict[mirna[0]] = Mirna(*mirna)
-
         print('Reference Bit-Score determined as: {}'.format(top_score))
-
     return mmdict
 
 
