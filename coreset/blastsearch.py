@@ -13,19 +13,11 @@ gen_version = int(version.split('.')[0])
 # Perform reciprocal BLAST search and construct Stockholm alignment
 def BlastSearch(mirna, r_path, o_path, c):
     core_set = {}
-    # with open(m_path) as infile:
-    #     mirnas = [
-    #         line.strip().split()
-    #         for line in infile
-    #         if not line.startswith('#')
-    #     ]
 
     # create blastDB for the reference score, to calculate bit score threshold
     # Check if BLAST database already exists, otherwise create it.
     # Database files are ".nhr", ".nin", ".nsq".
     file_extensions = ['.nhr', '.nin', '.nsq']
-
-
     out_data = o_path + '/data'
     if not os.path.isdir(out_data):
         mkdir_cmd = 'mkdir {}'.format(out_data)
@@ -259,25 +251,3 @@ def BlastSearch(mirna, r_path, o_path, c):
         print('Fasta file of candidate regions not found.')
 
     # TODO: include checks for validity of arguments
-
-
-
-
-# testing
-# size = 'bad'
-# if size == 'small':
-#     mirna_path = '/share/project/felixl/ncOrtho/data/mouse_ref_core/test_mirnaSet/test_mirnas.tsv'
-# elif size == 'full':
-#     mirna_path = '/share/project/felixl/ncOrtho/data/mouse_ref_core/test_mirnaSet/full_test.tsv'
-# elif size == 'andreas':
-#     mirna_path = '/home/andreas/Documents/Internship/mouse_project/micrornas/test_set.tsv'
-# elif size == 'edited':
-#     mirna_path = '/share/project/felixl/ncOrtho/data/mouse_ref_core/test_mirnaSet/test_mirnas_edited.tsv'
-# elif size == 'bad':
-#     mirna_path = '/share/project/felixl/ncOrtho/data/mouse_ref_core/test_mirnaSet/badset_small.tsv'
-#
-# ref_fa_path = '/share/project/felixl/ncOrtho/data/mouse_ref_core/reference_data/Mus_musculus.GRCm38.dna.toplevel.fa'
-# output = '/share/project/felixl/ncOrtho/data/mouse_ref_core/test_mirnaSet/ncOrtho_output'
-# c = 2
-#
-# BlastSearch(mirna_path, ref_fa_path, output, c)
