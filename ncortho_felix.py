@@ -11,171 +11,17 @@ import multiprocessing as mp
 import os
 import subprocess as sp
 import sys
+import glob
 
 # Internal ncOrtho modules
-from blastparser_felix import BlastParser
-from genparser_felix import GenomeParser
-from cmsearch_parser import cmsearch_parser
+from lib.blastparser_felix import BlastParser
+from lib.genparser_felix import GenomeParser
+from lib.cmsearch_parser import cmsearch_parser
+from lib.mirna_maker import mirna_maker
+from lib.CM_blastsearch import blast_search
+
 
 ###############################################################################
-
-
-# Central class of microRNA objects
-# class Mirna(object):
-#     def __init__(self, name, chromosome, start, end, strand, pre, bit):
-#         # miRNA identifier
-#         self.name = name
-#         # chromosome that the miRNA is located on
-#         self.chromosome = chromosome
-#         # start position of the pre-miRNA
-#         self.start = int(start)
-#         # end position of the pre-miRNA
-#         self.end = int(end)
-#         # sense (+) or anti-sense (-) strand
-#         self.strand = strand
-#         # nucleotide sequence of the pre-miRNA
-#         self.pre = pre
-#         # nucleotide sequence of the mature miRNA
-#         #self.mature = mature
-#         # reference bit score that miRNA receives by its own
-#         # covariance model
-#         self.bit = bit
-
-class Mirna(object):
-    def __init__(self, name, chromosome, start, end, strand):
-        # miRNA identifier
-        self.name = name
-        # chromosome that the miRNA is located on
-        self.chromosome = chromosome
-        # start position of the pre-miRNA
-        self.start = int(start)
-        # end position of the pre-miRNA
-        self.end = int(end)
-        # sense (+) or anti-sense (-) strand
-        self.strand = strand
-
-    def loadSeq(self, seq, type):
-        if type == 'pre':
-            self.pre = seq
-        elif type == 'mat':
-            self.mat = seq
-# TODO: include both mature strands, 5p and 3p, aka mature and star
-
-
-# mirna_maker: Parses the miRNA data input file and returns a
-#              dictionary of Mirna objects.
-# Arguments:
-# mirpath: path to file with microRNA data
-# cmpath: path to covariance models
-# output: path for writing temporary files
-def mirna_maker(mirpath, cmpath, output, msl):
-    
-    mmdict = {} # will be the return object
-    
-    with open(mirpath) as mirna_file:
-        mirna_data = [
-            line.strip().split() for line in mirna_file
-            if not line.startswith('#')
-        ]
-
-    for mirna in mirna_data:
-        mirid = mirna[0]
-        # Check if the output folder exists, otherwise create it.
-        if not os.path.isdir('{}/{}'.format(output, mirid)):
-            try:
-                mkdir = 'mkdir {}/{}'.format(output, mirid)
-                sp.call(mkdir, shell=True)
-            except:
-                print(
-                    '# Cannot create output folder for {}.'
-                    'Skipping to next miRNA.'
-                )
-                continue
-
-        # Obtain the reference bit score for each miRNA by applying it
-        # to its own covariance model.
-        print('# Calculating reference bit score for {}.'.format(mirid))
-        seq = mirna[5]
-        query = '{0}/{1}/{1}.fa'.format(output, mirid)
-        model = '{0}/{1}.cm'.format(cmpath, mirid)
-
-        # Check if the covariance model even exists, otherwise skip to
-        # the next miRNA.
-        if not os.path.isfile(model):
-            print('# No covariance model found for {}.'.format(mirid))
-            continue
-        
-        # Create a temporary FASTA file with the miRNA sequence as
-        # query for external search tool cmsearch to calculate
-        # reference bit score.
-        with open(query, 'w') as tmpfile:
-            tmpfile.write('>{0}\n{1}'.format(mirid, seq))
-        cms_output = '{0}/{1}/cmsearch_{1}_tmp.out'.format(output, mirid)
-        cms_log = '{0}/{1}/cmsearch_{1}.log'.format(output, mirid)
-        cms_command = (
-            'cmsearch -E 0.01 --noali -o {3} --tblout {0} {1} {2}'
-            .format(cms_output, model, query, cms_log)
-        )
-        sp.call(cms_command, shell=True)
-        with open(cms_output) as cmsfile:
-            hits = [
-                line.strip().split() for line in cmsfile
-                if not line.startswith('#')
-            ]
-            if hits:
-                top_score = float(hits[0][14])
-            # In case of any issues occuring in the calculation of the bit
-            # score, no specific threshold can be determined. The value will
-            # set to zero, which technically turns off the filter.
-            else:
-                print(
-                    '# Warning: Self bit score not applicable, '
-                    'setting threshold to 0.'
-                )
-                top_score = 0.0
-
-        tmp_mir = Mirna(*mirna[0:5])
-        tmp_mir.bit = top_score
-        #add sequences
-        tmp_mir.loadSeq(mirna[5], 'pre')
-        if len(mirna) > 6:
-            tmp_mir.loadSeq(mirna[6], 'mat')
-        else:
-            tmp_mir.loadSeq(None, 'mat')
-
-        # Create output.
-        mmdict[mirna[0]] = tmp_mir
-        # Remove temporary files.
-        for rmv_file in [cms_output, cms_log, query]:
-            sp.call('rm {}'.format(rmv_file), shell=True)
-
-        print('Reference Bit-Score determined as: {}'.format(top_score))
-    return mmdict
-
-
-# blast_search: Perform a reverse BLAST search in the reference genome for a
-# candidate.
-# s: cmsearch result
-# r: reference genome
-# o: output name
-# c: number of threads
-def blast_search(s, r, o, c):
-    # Check if BLAST database already exists, otherwise create it.
-    # Database files are ".nhr", ".nin", ".nsq".
-    file_extensions = ['.nhr', '.nin', '.nsq']
-    for fe in file_extensions:
-        checkpath = '{}{}'.format(r, fe)
-        if not os.path.isfile(checkpath):
-        # At least one of the BLAST db files is not existent and has to be
-        # created.
-            db_command = 'makeblastdb -in {} -dbtype nucl'.format(r)
-            sp.call(db_command, shell=True)
-            break
-    blast_command = (
-       'blastn -task blastn -db {0} -query {1} '
-       '-out {2} -num_threads {3} -outfmt 6'.format(r, s, o, c)
-    )
-    sp.call(blast_command, shell=True)
 
 
 # write_output: Write a FASTA file containing the accepted orthologs.
@@ -190,14 +36,13 @@ def write_output(a, o):
 
 # Main function
 def main():
-
     # Print header
-    print('\n'+'#'*57)
-    print('###'+' '*51+'###')
+    print('\n' + '#' * 57)
+    print('###' + ' ' * 51 + '###')
     print('###   ncOrtho - ortholog search for non-coding RNAs   ###')
-    print('###'+' '*51+'###')
-    print('#'*57+'\n')
-    
+    print('###' + ' ' * 51 + '###')
+    print('#' * 57 + '\n')
+
     # Parse command-line arguments
     # Define global variables
     parser = argparse.ArgumentParser(
@@ -229,10 +74,10 @@ def main():
         '-q', '--query', metavar='<.fa>', type=str,
         help='path to query genome'
     )
-    # reference genome
+    # reference genome blastDB
     parser.add_argument(
         '-r', '--reference', metavar='<.fa>', type=str,
-        help='path to reference genome'
+        help='Path to reference genome as fasta file or to an existing BlastDB of the reference genome'
     )
     # bit score cutoff for cmsearch hits
     parser.add_argument(
@@ -250,7 +95,7 @@ def main():
         sys.exit(1)
     else:
         args = parser.parse_args()
-    
+
     # Check if computer provides the desired number of cores.
     available_cpu = mp.cpu_count()
     if args.cpu > available_cpu:
@@ -277,14 +122,15 @@ def main():
     cm_cutoff = args.cutoff
     # Not in use yet
     msl = args.msl
-    #blast_cutoff = args.blastc
-       
+    # blast_cutoff = args.blastc
+
+
     # Create miRNA objects from the list of input miRNAs.
     mirna_dict = mirna_maker(mirnas, models, output, msl)
 
     # Identify ortholog candidates.
     for mir_data in mirna_dict:
-        print(mir_data)
+        #print(mir_data)
         mirna = mirna_dict[mir_data]
         mirna_id = mirna.name
         outdir = '{}/{}'.format(output, mirna_id)
@@ -294,23 +140,20 @@ def main():
         print('\n# Running covariance model search for {}.'.format(mirna_id))
         cms_output = '{0}/cmsearch_{1}.out'.format(outdir, mirna_id)
         # Calculate the bit score cutoff.
-        cut_off = mirna.bit*cm_cutoff
+        cut_off = mirna.bit * cm_cutoff
         # Calculate the length cutoff.
-        len_cut = len(mirna.pre)*msl
+        len_cut = len(mirna.pre) * msl
         # Perform covariance model search.
         # Report and inclusion thresholds set according to cutoff.
         cms_command = (
             'cmsearch -T {5} --incT {5} --cpu {0} --noali '
             '--tblout {1} {2}/{3}.cm {4}'
-            .format(cpu, cms_output, models, mirna_id, query, cut_off)
+                .format(cpu, cms_output, models, mirna_id, query, cut_off)
         )
         sp.call(cms_command, shell=True)
-        cm_results = CmsearchParser(cms_output, cut_off, len_cut, mirna_id)
+        cm_results = cmsearch_parser(cms_output, cut_off, len_cut, mirna_id)
 
-        #test
-        #print(cm_results)
-        #print(cm_results)
-        
+
         # Extract sequences for candidate hits (if any were found).
         if not cm_results:
             print('# No hits found for {}.\n'.format(mirna_id))
@@ -318,27 +161,27 @@ def main():
         else:
             gp = GenomeParser(query, cm_results.values())
             candidates = gp.extract_sequences()
-            print(candidates)
+            #print(candidates)
             nr_candidates = len(candidates)
             if nr_candidates == 1:
                 print(
                     '\n# Covariance model search successful, found 1 '
-                    'ortholog candidate.\n'
+                    'ortholog candidate above the threshold.\n'
                 )
             else:
                 print(
                     '\n# Covariance model search successful, found {} '
-                    'ortholog candidates.\n'
-                    .format(nr_candidates)
+                    'ortholog candidates above the threshold.\n'
+                        .format(nr_candidates)
                 )
             print('# Evaluating candidates.\n')
-        
+
         # Perform reverse BLAST test to verify candidates, stored in
         # a list (accepted_hits).
         accepted_hits = {}
-    
+
         for candidate in candidates:
-            print(candidate)
+            #print(candidate)
             sequence = candidates[candidate]
             temp_fasta = '{0}/{1}.fa'.format(outdir, candidate)
             # TODO: change BlastParser to take query directly from command-line
@@ -346,7 +189,7 @@ def main():
             with open(temp_fasta, 'w') as tempfile:
                 tempfile.write('>{0}\n{1}'.format(candidate, sequence))
             blast_output = '{0}/blast_{1}.out'.format(outdir, candidate)
-            blast_search(temp_fasta, reference, blast_output, cpu)
+            blast_search(temp_fasta, reference, output, blast_output, cpu)
             bp = BlastParser(mirna, blast_output, msl)
             if bp.parse_blast_output():
                 accepted_hits[candidate] = sequence
@@ -359,7 +202,7 @@ def main():
             else:
                 print(
                     '# ncOrtho found {} verified orthologs.\n'
-                    .format(nr_orthologs)
+                        .format(nr_orthologs)
                 )
             print('# Writing output of accepted candidates.\n')
             outpath = '{0}/{1}_orthologs.fa'.format(outdir, mirna_id)
@@ -368,10 +211,11 @@ def main():
         else:
             print(
                 '# None of the candidates for {} could be verified.\n'
-                .format(mirna_id)
+                    .format(mirna_id)
             )
             print('# No hits found for {}.\n'.format(mirna_id))
         print('# Finished ortholog search for {}.'.format(mirna_id))
+
 
 if __name__ == "__main__":
     main()

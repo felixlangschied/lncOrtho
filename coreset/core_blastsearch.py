@@ -25,8 +25,9 @@ def blast_search(mirna, r_path, o_path, c):
 
     db_files = []
     fname = r_path.split('/')[-1]
+    db_name = fname.replace('.fa', '')
     for fe in file_extensions:
-        db_files.append(glob.glob(out_data + '/' + fname + '.*' + fe))
+        db_files.append(glob.glob(out_data + '/' + db_name + '.*' + fe))
 
     if not [] in db_files:
         print("BLAST database for the reference species found")
@@ -40,7 +41,7 @@ def blast_search(mirna, r_path, o_path, c):
 
         db_command = (
             'makeblastdb -dbtype nucl -in {0} -out {1}/{2}'
-                .format(r_path, out_data, fname)
+                .format(r_path, out_data, db_name)
         )
         sp.call(db_command, shell=True)
 
@@ -68,7 +69,7 @@ def blast_search(mirna, r_path, o_path, c):
     # required to deactivate the dust filter for the BLAST search.
     bit_check = (
         'blastn -num_threads {0} -dust yes -task megablast -db {1}/{2} '
-        '-outfmt \"6 bitscore\"'.format(c, out_data, fname)
+        '-outfmt \"6 bitscore\"'.format(c, out_data, db_name)
     )
     if gen_version == 2:
         ref_bit_cmd = sp.Popen(
@@ -168,7 +169,7 @@ def blast_search(mirna, r_path, o_path, c):
             reblastn_cmd = (
                 'blastn -num_threads {0} -task blastn -db {1}/{2} -outfmt \"6'
                 ' sseqid sstart send evalue bitscore\"'
-                    .format(c, out_data, fname)
+                    .format(c, out_data, db_name)
             )
             if gen_version == 2:
                 reblastn = sp.Popen(
@@ -250,4 +251,3 @@ def blast_search(mirna, r_path, o_path, c):
     else:
         print('Fasta file of candidate regions not found.')
 
-    # TODO: include checks for validity of arguments
