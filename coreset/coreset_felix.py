@@ -12,7 +12,7 @@ import glob
 import os
 import subprocess as sp
 import pyfaidx
-from blastsearch import blast_search
+from core_blastsearch import blast_search
 from createcm_felix import create_cm
 
 
@@ -494,7 +494,7 @@ def main():
         mirid = mirna[0]
         if os.path.isfile('{0}/{1}/{1}.fa'.format(output, mirid)):
             # calculate and write results of reciprocal BLAST search
-            BlastSearch(mirna, ref_genome, output, cpu)
+            blast_search(mirna, ref_genome, output, cpu)
         else:
             print("No Hits found for {}, skipping...".format(mirid))
             noHits.append(mirid)
@@ -518,7 +518,7 @@ def main():
         align_path = '{0}/{1}/{1}.sto'.format(output, mirna)
         if os.path.isfile(align_path):
             with open(align_path, 'r') as infile:
-                CreateCm(infile.name, cm_output, cpu)
+                create_cm(infile.name, cm_output, cpu)
 
 if __name__ == '__main__':
     main()
