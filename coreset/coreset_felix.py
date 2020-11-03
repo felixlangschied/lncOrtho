@@ -492,7 +492,15 @@ def main():
     noHits = []
     for mirna in mirnas:
         mirid = mirna[0]
-        if os.path.isfile('{0}/{1}/{1}.fa'.format(output, mirid)):
+        if os.path.isfile('{0}/{1}/{1}_core.fa'.format(output, mirid)):
+            print(
+                'Fasta file with reciprocal hits already exists at:'
+                '{}/{}\n'
+                'Skipping..'
+                .format(output, mirid)
+                  )
+            continue
+        elif os.path.isfile('{0}/{1}/{1}.fa'.format(output, mirid)):
             # calculate and write results of reciprocal BLAST search
             blast_search(mirna, ref_genome, output, cpu)
         else:
