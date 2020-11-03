@@ -100,7 +100,10 @@ def mirna_maker(mirpath, cmpath, output, msl):
         tmp_mir.bit = top_score
         # add sequences
         tmp_mir.loadSeq(mirna[5], 'pre')
-        if len(mirna) > 6:
+        if (
+                len(mirna) > 6
+                and mirna[6] != '.'
+        ):
             tmp_mir.loadSeq(mirna[6], 'mat')
         else:
             tmp_mir.loadSeq(None, 'mat')

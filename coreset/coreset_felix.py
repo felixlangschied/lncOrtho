@@ -498,10 +498,12 @@ def main():
         else:
             print("No Hits found for {}, skipping...".format(mirid))
             noHits.append(mirid)
+        if not os.path.isfile('{0}/{1}/{1}_core.fa'.format(output, mirid)):
+            noHits.append(mirid)
 
     if noHits:
         print('Saving names of  ncRNAs with no hits at {}/noHits.txt'.format(output))
-        with open('{}/noHits.txt'.format(output),'w') as outfile:
+        with open('{}/noHits.txt'.format(output), 'w') as outfile:
             outfile.write('\n'.join(noHits))
             outfile.write('\n')
         for fail in noHits:
@@ -523,7 +525,15 @@ def main():
     cm_output = output + '/' + 'core_models'
     for mirna in mirna_dict:
         align_path = '{0}/{1}/{1}.sto'.format(output, mirna)
-        if os.path.isfile(align_path):
+        if mirna in noHits:
+            continue
+        elif os.path.isfile('{}/{}.cm'.format(cm_output, mirna)):
+            print(
+                'CM of {} already exists in {}.\n'
+                'Skipping..\n'.format(mirna, cm_output)
+            )
+            continue
+        elif os.path.isfile(align_path):
             with open(align_path, 'r') as infile:
                 create_cm(infile.name, cm_output, cpu)
         else:

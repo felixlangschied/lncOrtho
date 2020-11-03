@@ -9,6 +9,9 @@
 import argparse
 import multiprocessing as mp
 import sys
+import os
+import glob
+import subprocess as sp
 
 # internal modules
 from lib.ncortho_main import ncortho
@@ -106,12 +109,77 @@ def main():
     msl = args.msl
     # blast_cutoff = args.blastc
 
+    ##################################
+    # Checking Validity of Arguments #
+    ##################################
+
     # check how the reference is given
+    # test if reference DB exists or has to be created
+    file_extensions = ['.nhr', '.nin', '.nsq']
+    out_data = output + '/data'
+    fname = reference.split('/')[-1]
+    db_name = fname.replace('.fa', '')
+    db_files = []
+    if (
+            os.path.isfile(reference)
+            and fname.split('.')[-1] == 'fa'
+    ):
+        print(
+            'Reference given as FASTA file, testing if BlastDB exists in {}'
+                .format(out_data)
+        )
+        if not os.path.isdir(out_data):
+            mkdir_cmd = 'mkdir {}'.format(out_data)
+            sp.call(mkdir_cmd, shell=True)
+        for fe in file_extensions:
+            db_files.append(glob.glob(out_data + '/' + db_name + '.*' + fe))
+        if not [] in db_files:
+            print("BLAST database for the reference species found.")
+        else:
+            print(
+                'BLAST database for the reference species does not exist.\n'
+                'Constructing BLAST database.'
+            )
+            # At least one of the BLAST db files is not existent and has to be
+            # created.
+            db_command = 'makeblastdb -in {} -dbtype nucl -out {}/{}'.format(reference, out_data, fname)
+            sp.call(db_command, shell=True)
+    else:
+        for fe in file_extensions:
+            db_files.append(glob.glob(out_data + '/' + fname + '.*' + fe))
+        if not [] in db_files:
+            print("Reference given as blastDB. Starting analysis")
+        else:
+            print(
+                'BLAST database for the given reference does not exist.\n'
+                'Trying to construct a BLAST database from {}.'
+                .format(reference)
+            )
+            try:
+                db_command = 'makeblastdb -in {} -out {}/{} -dbtype nucl'.format(reference, out_data, db_name)
+                sp.call(db_command, shell=True)
+            except:
+                print(
+                    'Was not able to construct the BLASTdb for {}.\n'
+                    'Please check you input.'
+                    .format(reference)
+                )
+                sys.exit()
+    ref_blast_db = out_data + '/' + db_name
+
+    ##############################################################################
+    # TODO: implement multiple query files
+    # check how many query files are given
+    # if (
+    #         os.path.isfile(query)
+    #     and query.endswith
+    # )
 
 
 
+    hits = ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db)
 
-    ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, reference)
+    print(hits)
 
 
 if __name__ == "__main__":
