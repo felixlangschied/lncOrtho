@@ -22,10 +22,6 @@ class CmConstructor(object):
     def construct(self):
         print('# Constructing covariance model for {}.'.format(self.name))
         cmbuild = 'cmbuild'
-        # #cmbuild = (
-        #     '/home/andreas/Applications/infernal-1.1.2-linux-intel-gcc/'
-        #     'binaries/cmbuild'
-        # )
         construct_command = (
             '{0} -n {1} -o {2}/{1}_cmbuild.log {2}/{1}.cm {3}'
             .format(cmbuild, self.name, self.outpath, self.alignment)
@@ -51,7 +47,7 @@ class CmConstructor(object):
         print('# Finished covariance model calibration.')
 
 
-def CreateCm(alignment,output,cpu):
+def create_cm(alignment,output,cpu):
 
     
     # Check if computer provides the desired number of cores.
@@ -85,29 +81,3 @@ def CreateCm(alignment,output,cpu):
     # Calibrate the model.
     cmc.calibrate()
 
-# testing
-# size = 'small'
-# if size == 'small':
-#     mirna_path = '/share/project/felixl/ncOrtho/data/mouse_ref_core/test_mirnaSet/test_mirnas.tsv'
-# elif size == 'full':
-#     mirna_path = '/share/project/felixl/ncOrtho/data/mouse_ref_core/test_mirnaSet/full_test.tsv'
-# elif size == 'andreas':
-#     mirna_path = '/home/andreas/Documents/Internship/mouse_project/micrornas/test_set.tsv'
-# elif size == 'edited':
-#     mirna_path = '/share/project/felixl/ncOrtho/data/mouse_ref_core/test_mirnaSet/test_mirnas_edited.tsv'
-# output = '/share/project/felixl/ncOrtho/data/mouse_ref_core/test_mirnaSet/ncOrtho_output'
-# c = 2
-#     # Read in the miRNA data
-# with open(mirna_path) as mirfile:
-#     mirnas = [
-#         line.split() for line in mirfile.readlines()
-#         if not line.startswith('#')
-#     ]
-#
-#     for mirna in mirnas:
-#         mirnID = mirna[0]
-#         with open('{0}/{1}/{1}.sto'.format(output, mirnID), 'r') as infile:
-#             createcm(infile.name, output, c)
-
-# if __name__ == '__main__':
-#     main()

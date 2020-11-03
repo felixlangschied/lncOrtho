@@ -12,8 +12,8 @@ import glob
 import os
 import subprocess as sp
 import pyfaidx
-from blastsearch import BlastSearch
-from createcm_felix import CreateCm
+from core_blastsearch import blast_search
+from createcm_felix import create_cm
 
 
 # Parse a GTF file to store the coordinates for each protein-coding gene in a
@@ -359,6 +359,13 @@ def main():
     print('### Synteny Analysis ###')
     print('#########################')
 
+    if not neighbor_dict:
+        print(
+            "Not enough orthologs found in the core species for synteny analysis.\n"
+            "Exiting..."
+        )
+        sys.exit()
+
     # Search for the coordinates of the orthologs and extract the sequences
     for taxon in neighbor_dict:  # neighbor_dict = {'Core_taxon': {mirnaID: ('category', [geneIDleft, geneIDright])}
         print('\nStarting synteny analysis for {}'.format(taxon))
@@ -423,28 +430,18 @@ def main():
                         # depending on the order of orthologs. The order of the orthologs in the core
                         # species might be inverted compared to that in the reference species.
                         ###############################################################################
-
                         # gtf_parser = gene_id: (contig_id,coordinate on contig)
                         # gtf_parser = contig_id: (coordinate: (gene_id,start,end,strand))
-
                         # left_data = (contig-id, coordinate on contig)
 
                         if left_data[1] < right_data[1]:
-                            # print('left')
                             contig = left_data[0]
-                            # print(core_gtf_dict[contig][left_data[1]]) # gene_id, start, end, strand
-                            # print(core_gtf_dict[contig][right_data[1]])
-
-                            # print(contig)
-
                             seq_start = (
                                 core_gtf_dict[contig][left_data[1]][2]
                             )
-                            # print(seq_start)
                             seq_end = (
                                 core_gtf_dict[right_data[0]][right_data[1]][1]
                             )
-                            # print(seq_end)
                             seq = genome[contig][seq_start - 1:seq_end].seq
                             try:
                                 mirna_dict[mirna][taxon] = seq
@@ -452,19 +449,13 @@ def main():
                                 mirna_dict[mirna] = {taxon: seq}
 
                         elif right_data[1] < left_data[1]:
-                            # print('right')
-                            # print(core_gtf_dict[right_data[0]][right_data[1]])
-                            # print(core_gtf_dict[left_data[0]][left_data[1]])
                             contig = left_data[0]
-                            # print(contig)
                             seq_end = (
                                 core_gtf_dict[left_data[0]][left_data[1]][2]
                             )
-                            # print(seq_start)
                             seq_start = (
                                 core_gtf_dict[right_data[0]][right_data[1]][1]
                             )
-                            # p rint(seq_end)
                             seq = genome[contig][seq_start - 1:seq_end].seq
                             try:
                                 mirna_dict[mirna][taxon] = seq
@@ -476,13 +467,13 @@ def main():
                             'No shared synteny for {} in {}.'
                             .format(mirna, taxon)
                         )
-                        # print(left_data)
-                        # print(right_data)
         except:
             print('No GTF file found for {}'.format(taxon))
             continue
 
-    def write_output():
+
+
+    def write_fasta():
         for mirna in mirna_dict:
             with open('{0}/{1}/{1}.fa'.format(output, mirna), 'w') as outfile:
                 for core_taxon in mirna_dict[mirna]:
@@ -492,14 +483,31 @@ def main():
                     )
 
     # write fasta format output of candidate regions of each miRNA in each core species
-    write_output()
+    write_fasta()
 
     print('\n#########################')
     print('### Reciprocal BLAST ###')
     print('#########################\n')
 
-    # calculate and write results of reciprocal BLAST search
-    BlastSearch(mirna_path, ref_genome, output, cpu)
+    noHits = []
+    for mirna in mirnas:
+        mirid = mirna[0]
+        if os.path.isfile('{0}/{1}/{1}.fa'.format(output, mirid)):
+            # calculate and write results of reciprocal BLAST search
+            blast_search(mirna, ref_genome, output, cpu)
+        else:
+            print("No Hits found for {}, skipping...".format(mirid))
+            noHits.append(mirid)
+
+    if noHits:
+        print('Saving names of  skipped ncRNAs at {}/noHits.txt'.format(output))
+        with open('{}/noHits.txt'.format(output),'w') as outfile:
+            outfile.write('\n'.join(noHits))
+            outfile.write('\n')
+        for fail in noHits:
+            rm_cmd = 'rm -r {0}/{1}'.format(output,fail)
+            sp.call(rm_cmd, shell=True)
+
 
     print('\n#########################')
     print('### Creating CMs ###')
@@ -507,9 +515,10 @@ def main():
 
     cm_output = output + '/' + 'core_models'
     for mirna in mirna_dict:
-        with open('{0}/{1}/{1}.sto'.format(output, mirna), 'r') as infile:
-            CreateCm(infile.name, cm_output, cpu)
-
+        align_path = '{0}/{1}/{1}.sto'.format(output, mirna)
+        if os.path.isfile(align_path):
+            with open(align_path, 'r') as infile:
+                create_cm(infile.name, cm_output, cpu)
 
 if __name__ == '__main__':
     main()
