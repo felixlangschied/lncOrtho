@@ -162,7 +162,7 @@ def blast_search(mirna, r_path, o_path, c):
         print('Found BLAST-Hits above threshold for:')
         print(', '.join(core_dict.keys()))
 
-        for species in core_dict.keys():
+        for species in core_dict.copy():
             print('### ' + species + ' ###')
             # Make sure to eliminate gaps
             candidate_seq = core_dict[species].split()[3].replace('-', '')
@@ -217,37 +217,41 @@ def blast_search(mirna, r_path, o_path, c):
                 print('FASTA file not found for {}.'.format(mirna[0]))
                 continue
 
+        notreciproc = []
         # write output
-        corefile = '{}/{}_core.fa'.format(out_folder, mirid)
-        with open(corefile, 'w') as outfile:
-            outfile.write('>{}\n{}\n'.format(mirid, preseq))
-            print('\n##### Constructing core set for {}: #####'.format(mirid))
-            for accepted in core_dict:
-                outfile.write(
-                    '>{}\n{}\n'
-                        .format(accepted, core_dict[accepted].split('\t')[3])
-                        .replace('-', '')
-                )
-        alignment = '{}/{}.aln'.format(out_folder, mirid)
-        stockholm = '{}/{}.sto'.format(out_folder, mirid)
-        outtree = '{}/{}.dnd'.format(out_folder, mirid)
-        t_coffee = 't_coffee'
+        if core_dict:
+            corefile = '{}/{}_core.fa'.format(out_folder, mirid)
+            with open(corefile, 'w') as outfile:
+                outfile.write('>{}\n{}\n'.format(mirid, preseq))
+                print('\n##### Constructing core set for {}: #####'.format(mirid))
+                for accepted in core_dict:
+                    outfile.write(
+                        '>{}\n{}\n'
+                            .format(accepted, core_dict[accepted].split('\t')[3])
+                            .replace('-', '')
+                    )
+            alignment = '{}/{}.aln'.format(out_folder, mirid)
+            stockholm = '{}/{}.sto'.format(out_folder, mirid)
+            outtree = '{}/{}.dnd'.format(out_folder, mirid)
+            t_coffee = 't_coffee'
 
-        print('Building T-Coffee alignment.')
-        tc_cmd_1 = (
-            '{} -quiet -multi_core={} -special_mode=rcoffee -in {} '
-            '-output=clustalw_aln -outfile={} -newtree={} -remove_template_file=1'
-            .format(t_coffee, c, corefile, alignment, outtree)
-        )
-        sp.call(tc_cmd_1, shell=True)
+            print('Building T-Coffee alignment.')
+            tc_cmd_1 = (
+                '{} -quiet -multi_core={} -special_mode=rcoffee -in {} '
+                '-output=clustalw_aln -outfile={} -newtree={} -remove_template_file=1'
+                .format(t_coffee, c, corefile, alignment, outtree)
+            )
+            sp.call(tc_cmd_1, shell=True)
 
-        print('Adding secondary structure to Stockholm format.')
-        tc_cmd_2 = (
-            '{} -other_pg seq_reformat -in {} -action +add_alifold -output '
-            'stockholm_aln -out {}'
-            .format(t_coffee, alignment, stockholm)
-        )
-        sp.call(tc_cmd_2, shell=True)
-    else:
-        print('Fasta file of candidate regions not found.')
-
+            print('Adding secondary structure to Stockholm format.')
+            tc_cmd_2 = (
+                '{} -other_pg seq_reformat -in {} -action +add_alifold -output '
+                'stockholm_aln -out {}'
+                .format(t_coffee, alignment, stockholm)
+            )
+            sp.call(tc_cmd_2, shell=True)
+        else:
+            print('\nNo reverse hit found for any of the core species.\n'
+                  'Skipping alignment..'
+                  )
+            return(mirid)

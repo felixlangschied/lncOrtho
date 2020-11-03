@@ -500,7 +500,7 @@ def main():
             noHits.append(mirid)
 
     if noHits:
-        print('Saving names of  skipped ncRNAs at {}/noHits.txt'.format(output))
+        print('Saving names of  ncRNAs with no hits at {}/noHits.txt'.format(output))
         with open('{}/noHits.txt'.format(output),'w') as outfile:
             outfile.write('\n'.join(noHits))
             outfile.write('\n')
@@ -508,17 +508,37 @@ def main():
             rm_cmd = 'rm -r {0}/{1}'.format(output,fail)
             sp.call(rm_cmd, shell=True)
 
+    # Cleanup extra T-coffee files
+    run_path = os.getcwd()
+    trash_paths = glob.glob('{}/*.template_list'.format(run_path))
+    for trash in trash_paths:
+        sp.call('rm {}'.format(trash), shell=True)
+
 
     print('\n#########################')
     print('### Creating CMs ###')
     print('#########################\n')
 
+    notreciproc = []
     cm_output = output + '/' + 'core_models'
     for mirna in mirna_dict:
         align_path = '{0}/{1}/{1}.sto'.format(output, mirna)
         if os.path.isfile(align_path):
             with open(align_path, 'r') as infile:
                 create_cm(infile.name, cm_output, cpu)
+        else:
+            print('No alignment file found for {}.\n'
+                  'Added to list of ncRNAs that were not the best reciprocal hit'.format(mirna))
+            notreciproc.append(mirna)
+
+    if notreciproc:
+        print('Saving names of ncRNAs that were not the best reciprocal hit at {}/notReciproc.txt'.format(output))
+        with open('{}/notReciproc.txt'.format(output),'w') as outfile:
+            outfile.write('\n'.join(notreciproc))
+            outfile.write('\n')
+        for fail in notreciproc:
+            rm_cmd = 'rm -r {0}/{1}'.format(output, fail)
+            sp.call(rm_cmd, shell=True)
 
 if __name__ == '__main__':
     main()
