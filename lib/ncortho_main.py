@@ -17,7 +17,7 @@ def write_output(a, o):
         for hit in a:
             outfile.write('>{0}\n{1}\n'.format(hit, a[hit]))
 
-def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, reference):
+def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
     # Create miRNA objects from the list of input miRNAs.
     mirna_dict = mirna_maker(mirnas, models, output, msl)
 
@@ -82,7 +82,8 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, reference):
             with open(temp_fasta, 'w') as tempfile:
                 tempfile.write('>{0}\n{1}'.format(candidate, sequence))
             blast_output = '{0}/blast_{1}.out'.format(outdir, candidate)
-            blast_search(temp_fasta, reference, output, blast_output, cpu)
+
+            blast_search(temp_fasta, ref_blast_db, blast_output, cpu)
             bp = BlastParser(mirna, blast_output, msl)
             if bp.parse_blast_output():
                 accepted_hits[candidate] = sequence
@@ -101,6 +102,8 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, reference):
             outpath = '{0}/{1}_orthologs.fa'.format(outdir, mirna_id)
             write_output(accepted_hits, outpath)
             print('# Finished writing output.\n')
+
+            return(accepted_hits)
         else:
             print(
                 '# None of the candidates for {} could be verified.\n'

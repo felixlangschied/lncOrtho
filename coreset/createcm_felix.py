@@ -49,7 +49,6 @@ class CmConstructor(object):
 
 def create_cm(alignment,output,cpu):
 
-    
     # Check if computer provides the desired number of cores.
     available_cpu = mp.cpu_count()
     if cpu > available_cpu:
