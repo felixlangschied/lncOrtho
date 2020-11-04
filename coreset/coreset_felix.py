@@ -508,8 +508,6 @@ def main():
         else:
             print("No Hits found for {}, skipping...".format(mirid))
             noHits.append(mirid)
-        if not os.path.isfile('{0}/{1}/{1}_core.fa'.format(output, mirid)):
-            noHits.append(mirid)
 
     if noHits:
         print('Saving names of  ncRNAs with no hits at {}/noHits.txt'.format(output))
