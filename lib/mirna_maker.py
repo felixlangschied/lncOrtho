@@ -64,7 +64,8 @@ def mirna_maker(mirpath, cmpath, output, msl):
         # Check if the covariance model even exists, otherwise skip to
         # the next miRNA.
         if not os.path.isfile(model):
-            print('# No covariance model found for {}.'.format(mirid))
+            print('# No covariance model found for {}.\n'
+                  'Skipping miRNA..'.format(mirid))
             continue
 
         # Create a temporary FASTA file with the miRNA sequence as

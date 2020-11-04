@@ -6,7 +6,6 @@ from lib.blastparser_felix import BlastParser
 from lib.genparser_felix import GenomeParser
 from lib.cmsearch_parser import cmsearch_parser
 from lib.mirna_maker import mirna_maker
-from lib.CM_blastsearch import blast_search
 
 # write_output: Write a FASTA file containing the accepted orthologs.
 # Arguments:
@@ -17,9 +16,26 @@ def write_output(a, o):
         for hit in a:
             outfile.write('>{0}\n{1}\n'.format(hit, a[hit]))
 
+# blast_search: Perform a reverse BLAST search in the reference genome for a
+# candidate.
+# s: cmsearch result
+# o: output for the blastsearch
+# c: number of threads
+# ref_blast_db: blastDB of the reference genome (tested and created in ncortho_main.py)
+def blast_search(s, ref_blast_db, o, c):
+
+    blast_command = (
+        'blastn -task blastn -db {0} -query {1} '
+        '-out {2} -num_threads {3} -outfmt 6'.format(ref_blast_db, s, o, c)
+    )
+    sp.call(blast_command, shell=True)
+
 def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
     # Create miRNA objects from the list of input miRNAs.
     mirna_dict = mirna_maker(mirnas, models, output, msl)
+
+    # Create Outdict:
+    mirout_dict = {}
 
     # Identify ortholog candidates.
     for mir_data in mirna_dict:
@@ -46,6 +62,8 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
         sp.call(cms_command, shell=True)
         cm_results = cmsearch_parser(cms_output, cut_off, len_cut, mirna_id)
 
+        print('These are the cm_results')
+        print(cm_results)
 
         # Extract sequences for candidate hits (if any were found).
         if not cm_results:
@@ -72,9 +90,9 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
         # Perform reverse BLAST test to verify candidates, stored in
         # a list (accepted_hits).
         accepted_hits = {}
-
         for candidate in candidates:
-            #print(candidate)
+            # print('This is a candidate:')
+            # print(candidate)
             sequence = candidates[candidate]
             temp_fasta = '{0}/{1}.fa'.format(outdir, candidate)
             # TODO: change BlastParser to take query directly from command-line
@@ -87,6 +105,8 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
             bp = BlastParser(mirna, blast_output, msl)
             if bp.parse_blast_output():
                 accepted_hits[candidate] = sequence
+                #out_info = [bp.sseqid, bp.sstart, bp.send, sequence]
+                #accepted_hits[candidate] = out_info
 
         # Write output file if at least one candidate got accepted.
         if accepted_hits:
@@ -103,7 +123,13 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
             write_output(accepted_hits, outpath)
             print('# Finished writing output.\n')
 
-            return(accepted_hits)
+            print('These are the accepted_hits')
+            print(accepted_hits)
+            print('Trying to update')
+            out_dict = {}
+            for key in accepted_hits:
+                out_dict[key] = (accepted_hits[key], cm_results[key])
+            return(out_dict)
         else:
             print(
                 '# None of the candidates for {} could be verified.\n'
