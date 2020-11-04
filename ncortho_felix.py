@@ -62,7 +62,7 @@ def main():
     # reference genome blastDB
     parser.add_argument(
         '-r', '--reference', metavar='<.fa>', type=str,
-        help='Path to reference genome as fasta file or to an existing BlastDB of the reference genome'
+        help='Path to reference genome as fasta file or to an existing BlastDB of the reference genome (DB basename)'
     )
     # bit score cutoff for cmsearch hits
     parser.add_argument(
@@ -125,8 +125,9 @@ def main():
             and fname.split('.')[-1] == 'fa'
     ):
         print(
-            'Reference given as FASTA file, testing if BlastDB exists in {}'
-                .format(out_data)
+            'Reference given as FASTA file, testing if BlastDB exists in\n'
+            '{}'
+            .format(out_data)
         )
         if not os.path.isdir(out_data):
             mkdir_cmd = 'mkdir {}'.format(out_data)
@@ -134,7 +135,8 @@ def main():
         for fe in file_extensions:
             db_files.append(glob.glob(out_data + '/' + db_name + '.*' + fe))
         if not [] in db_files:
-            print("BLAST database for the reference species found.")
+            print("BLAST database for the reference species found.\n")
+            ref_blast_db = out_data + '/' + db_name
         else:
             print(
                 'BLAST database for the reference species does not exist.\n'
@@ -142,13 +144,20 @@ def main():
             )
             # At least one of the BLAST db files is not existent and has to be
             # created.
-            db_command = 'makeblastdb -in {} -dbtype nucl -out {}/{}'.format(reference, out_data, fname)
-            sp.call(db_command, shell=True)
+            db_command = 'makeblastdb -in {} -dbtype nucl -out {}/{}'.format(reference, out_data, db_name)
+            try:
+                sp.run(db_command, shell=True, check=True, stderr=sp.PIPE)
+                ref_blast_db = out_data + '/' + db_name
+            except sp.CalledProcessError:
+                print('Could not create blastDB from the reference input file.\nExiting..\n')
+                sys.exit()
     else:
         for fe in file_extensions:
-            db_files.append(glob.glob(out_data + '/' + fname + '.*' + fe))
+            #db_files.append(glob.glob(out_data + '/' + fname + '.*' + fe))
+            db_files.append(glob.glob(reference + '.*' + fe))
         if not [] in db_files:
-            print("Reference given as blastDB. Starting analysis")
+            print("Reference given as blastDB basename. Starting analysis\n")
+            ref_blast_db = reference
         else:
             print(
                 'BLAST database for the given reference does not exist.\n'
@@ -157,29 +166,83 @@ def main():
             )
             try:
                 db_command = 'makeblastdb -in {} -out {}/{} -dbtype nucl'.format(reference, out_data, db_name)
-                sp.call(db_command, shell=True)
-            except:
+                sp.run(db_command, shell=True, check=True, stderr=sp.PIPE)
+                ref_blast_db = out_data + '/' + db_name
+            except sp.CalledProcessError:
                 print(
-                    'Was not able to construct the BLASTdb for {}.\n'
-                    'Please check you input.'
+                    'Was not able to construct the BLASTdb for {}\n'
+                    'Please check you input.\n'
                     .format(reference)
                 )
                 sys.exit()
-    ref_blast_db = out_data + '/' + db_name
 
     ##############################################################################
-    # TODO: implement multiple query files
-    # check how many query files are given
-    # if (
-    #         os.path.isfile(query)
-    #     and query.endswith
-    # )
+
+    # check type of query: single FASTA-file, Folder with FASTA-files or txt document with paths to FASTA files
+    # TODO: Write summary output to file
+    #variable for saving summary output
+    hit_dict = {}
+    if (
+        os.path.isfile(query)
+        and query.split('.')[-1] == 'fa'
+    ):
+        print('Query given as single FASTA-file. Starting anaysis\n')
+        query_species = query.split('/')[-1]
+        hits = ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db)
+        hit_dict[query_species] = hits
+    elif (
+        os.path.isfile(query)
+        and query.split('.')[-1] == 'txt'
+    ):
+        print('Found a textfile as the query input.\n'
+              'Searching for paths to FASTA-files in {}\n'.format(query))
+        with open(query, 'r') as fasta_list:
+            query_list = fasta_list.read().splitlines()
+            isfasta = []
+            for query_path in query_list:
+                if (
+                    os.path.isfile(query_path)
+                    and query_path.split('.')[-1] == 'fa'
+                ):
+                    isfasta.append(query_path)
+                else:
+                    print('{} is not a valid FASTA file.\n'
+                          'Skipping..'.format(query_path))
+                    continue
+            print('Found {} paths to valid FASTA files in the query input file\n'.format(len(isfasta)))
+
+            for fasta_path in isfasta:
+                query_species = fasta_path.split('/')[-1]
+                print('### Starting search for miRNAs in\n'
+                      '### {}'.format(query_species))
+                hits = ncortho(mirnas, models, output, msl, cpu, fasta_path, cm_cutoff, ref_blast_db)
+                hit_dict[query_species] = hits
+
+    elif os.path.isdir(query):
+        print('Query genomes given as directory.\n'
+              'Searching for FASTA files in {}'.format(query))
+        dir_files = glob.glob(query + '/*')
+        isfasta = [file for file in dir_files if file.split('.')[-1] == 'fa']
+        print('Found {} valid FASTA files in the query input directory\n'.format(len(isfasta)))
+        for fasta_path in isfasta:
+            query_species = fasta_path.split('/')[-1]
+            print('### Starting search for miRNAs in\n'
+                  '### {}'.format(query_species))
+            hits = ncortho(mirnas, models, output, msl, cpu, fasta_path, cm_cutoff, ref_blast_db)
+            hit_dict[query_species] = hits
+    else:
+        print('No valid query found. Exiting..')
+        sys.exit()
+
+
+    print('This is the final output')
+    print(hit_dict)
 
 
 
-    hits = ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db)
+    #hits = ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db)
 
-    print(hits)
+    #print(hits)
 
 
 if __name__ == "__main__":

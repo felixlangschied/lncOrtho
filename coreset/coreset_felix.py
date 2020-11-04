@@ -503,10 +503,10 @@ def main():
         elif os.path.isfile('{0}/{1}/{1}.fa'.format(output, mirid)):
             # calculate and write results of reciprocal BLAST search
             blast_search(mirna, ref_genome, output, cpu)
+            if not os.path.isfile('{0}/{1}/{1}_core.fa'.format(output, mirid)):
+                noHits.append(mirid)
         else:
             print("No Hits found for {}, skipping...".format(mirid))
-            noHits.append(mirid)
-        if not os.path.isfile('{0}/{1}/{1}_core.fa'.format(output, mirid)):
             noHits.append(mirid)
 
     if noHits:
@@ -515,14 +515,18 @@ def main():
             outfile.write('\n'.join(noHits))
             outfile.write('\n')
         for fail in noHits:
-            rm_cmd = 'rm -r {0}/{1}'.format(output,fail)
-            sp.call(rm_cmd, shell=True)
+            print('this is a fail: {}'.format(fail))
+            if os.path.isdir('{0}/{1}'.format(output, fail)):
+                rm_cmd = 'rm -r {0}/{1}'.format(output, fail)
+                sp.call(rm_cmd, shell=True)
+
 
     # Cleanup extra T-coffee files
     run_path = os.getcwd()
     trash_paths = glob.glob('{}/*.template_list'.format(run_path))
     for trash in trash_paths:
         sp.call('rm {}'.format(trash), shell=True)
+    sp.call('rm {}/alirna.ps'.format(run_path), shell=True)
 
 
     print('\n#########################')
