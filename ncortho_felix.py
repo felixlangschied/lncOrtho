@@ -8,31 +8,16 @@
 # Python
 import argparse
 import multiprocessing as mp
-import os
-import subprocess as sp
 import sys
+import os
 import glob
+import subprocess as sp
 
-# Internal ncOrtho modules
-from lib.blastparser_felix import BlastParser
-from lib.genparser_felix import GenomeParser
-from lib.cmsearch_parser import cmsearch_parser
-from lib.mirna_maker import mirna_maker
-from lib.CM_blastsearch import blast_search
+# internal modules
+from lib.ncortho_main import ncortho
 
 
 ###############################################################################
-
-
-# write_output: Write a FASTA file containing the accepted orthologs.
-# Arguments:
-# a: dictionary of accepted hits
-# o: path for output
-def write_output(a, o):
-    with open(o, 'w') as outfile:
-        for hit in a:
-            outfile.write('>{0}\n{1}\n'.format(hit, a[hit]))
-
 
 # Main function
 def main():
@@ -77,7 +62,7 @@ def main():
     # reference genome blastDB
     parser.add_argument(
         '-r', '--reference', metavar='<.fa>', type=str,
-        help='Path to reference genome as fasta file or to an existing BlastDB of the reference genome'
+        help='Path to reference genome as fasta file or to an existing BlastDB of the reference genome (DB basename)'
     )
     # bit score cutoff for cmsearch hits
     parser.add_argument(
@@ -124,97 +109,140 @@ def main():
     msl = args.msl
     # blast_cutoff = args.blastc
 
+    ##################################
+    # Checking Validity of Arguments #
+    ##################################
 
-    # Create miRNA objects from the list of input miRNAs.
-    mirna_dict = mirna_maker(mirnas, models, output, msl)
-
-    # Identify ortholog candidates.
-    for mir_data in mirna_dict:
-        #print(mir_data)
-        mirna = mirna_dict[mir_data]
-        mirna_id = mirna.name
-        outdir = '{}/{}'.format(output, mirna_id)
-        # Create output folder, if not existent.
-        if not os.path.isdir(outdir):
-            sp.call('mkdir {}'.format(outdir), shell=True)
-        print('\n# Running covariance model search for {}.'.format(mirna_id))
-        cms_output = '{0}/cmsearch_{1}.out'.format(outdir, mirna_id)
-        # Calculate the bit score cutoff.
-        cut_off = mirna.bit * cm_cutoff
-        # Calculate the length cutoff.
-        len_cut = len(mirna.pre) * msl
-        # Perform covariance model search.
-        # Report and inclusion thresholds set according to cutoff.
-        cms_command = (
-            'cmsearch -T {5} --incT {5} --cpu {0} --noali '
-            '--tblout {1} {2}/{3}.cm {4}'
-                .format(cpu, cms_output, models, mirna_id, query, cut_off)
+    # check how the reference is given
+    # test if reference DB exists or has to be created
+    file_extensions = ['.nhr', '.nin', '.nsq']
+    out_data = output + '/data'
+    fname = reference.split('/')[-1]
+    db_name = fname.replace('.fa', '')
+    db_files = []
+    if (
+            os.path.isfile(reference)
+            and fname.split('.')[-1] == 'fa'
+    ):
+        print(
+            'Reference given as FASTA file, testing if BlastDB exists in\n'
+            '{}'
+            .format(out_data)
         )
-        sp.call(cms_command, shell=True)
-        cm_results = cmsearch_parser(cms_output, cut_off, len_cut, mirna_id)
-
-
-        # Extract sequences for candidate hits (if any were found).
-        if not cm_results:
-            print('# No hits found for {}.\n'.format(mirna_id))
-            continue
-        else:
-            gp = GenomeParser(query, cm_results.values())
-            candidates = gp.extract_sequences()
-            #print(candidates)
-            nr_candidates = len(candidates)
-            if nr_candidates == 1:
-                print(
-                    '\n# Covariance model search successful, found 1 '
-                    'ortholog candidate above the threshold.\n'
-                )
-            else:
-                print(
-                    '\n# Covariance model search successful, found {} '
-                    'ortholog candidates above the threshold.\n'
-                        .format(nr_candidates)
-                )
-            print('# Evaluating candidates.\n')
-
-        # Perform reverse BLAST test to verify candidates, stored in
-        # a list (accepted_hits).
-        accepted_hits = {}
-
-        for candidate in candidates:
-            #print(candidate)
-            sequence = candidates[candidate]
-            temp_fasta = '{0}/{1}.fa'.format(outdir, candidate)
-            # TODO: change BlastParser to take query directly from command-line
-            #       to avoid creating temporary files
-            with open(temp_fasta, 'w') as tempfile:
-                tempfile.write('>{0}\n{1}'.format(candidate, sequence))
-            blast_output = '{0}/blast_{1}.out'.format(outdir, candidate)
-            blast_search(temp_fasta, reference, output, blast_output, cpu)
-            bp = BlastParser(mirna, blast_output, msl)
-            if bp.parse_blast_output():
-                accepted_hits[candidate] = sequence
-
-        # Write output file if at least one candidate got accepted.
-        if accepted_hits:
-            nr_orthologs = len(accepted_hits)
-            if nr_orthologs == 1:
-                print('# ncOrtho found 1 verified ortholog.\n')
-            else:
-                print(
-                    '# ncOrtho found {} verified orthologs.\n'
-                        .format(nr_orthologs)
-                )
-            print('# Writing output of accepted candidates.\n')
-            outpath = '{0}/{1}_orthologs.fa'.format(outdir, mirna_id)
-            write_output(accepted_hits, outpath)
-            print('# Finished writing output.\n')
+        if not os.path.isdir(out_data):
+            mkdir_cmd = 'mkdir {}'.format(out_data)
+            sp.call(mkdir_cmd, shell=True)
+        for fe in file_extensions:
+            db_files.append(glob.glob(out_data + '/' + db_name + '.*' + fe))
+        if not [] in db_files:
+            print("BLAST database for the reference species found.\n")
+            ref_blast_db = out_data + '/' + db_name
         else:
             print(
-                '# None of the candidates for {} could be verified.\n'
-                    .format(mirna_id)
+                'BLAST database for the reference species does not exist.\n'
+                'Constructing BLAST database.'
             )
-            print('# No hits found for {}.\n'.format(mirna_id))
-        print('# Finished ortholog search for {}.'.format(mirna_id))
+            # At least one of the BLAST db files is not existent and has to be
+            # created.
+            db_command = 'makeblastdb -in {} -dbtype nucl -out {}/{}'.format(reference, out_data, db_name)
+            try:
+                sp.run(db_command, shell=True, check=True, stderr=sp.PIPE)
+                ref_blast_db = out_data + '/' + db_name
+            except sp.CalledProcessError:
+                print('Could not create blastDB from the reference input file.\nExiting..\n')
+                sys.exit()
+    else:
+        for fe in file_extensions:
+            #db_files.append(glob.glob(out_data + '/' + fname + '.*' + fe))
+            db_files.append(glob.glob(reference + '.*' + fe))
+        if not [] in db_files:
+            print("Reference given as blastDB basename. Starting analysis\n")
+            ref_blast_db = reference
+        else:
+            print(
+                'BLAST database for the given reference does not exist.\n'
+                'Trying to construct a BLAST database from {}.'
+                .format(reference)
+            )
+            try:
+                db_command = 'makeblastdb -in {} -out {}/{} -dbtype nucl'.format(reference, out_data, db_name)
+                sp.run(db_command, shell=True, check=True, stderr=sp.PIPE)
+                ref_blast_db = out_data + '/' + db_name
+            except sp.CalledProcessError:
+                print(
+                    'Was not able to construct the BLASTdb for {}\n'
+                    'Please check you input.\n'
+                    .format(reference)
+                )
+                sys.exit()
+
+    ##############################################################################
+
+    # check type of query: single FASTA-file, Folder with FASTA-files or txt document with paths to FASTA files
+    # TODO: Write summary output to file
+    #variable for saving summary output
+    hit_dict = {}
+    if (
+        os.path.isfile(query)
+        and query.split('.')[-1] == 'fa'
+    ):
+        print('Query given as single FASTA-file. Starting anaysis\n')
+        query_species = query.split('/')[-1]
+        hits = ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db)
+        hit_dict[query_species] = hits
+    elif (
+        os.path.isfile(query)
+        and query.split('.')[-1] == 'txt'
+    ):
+        print('Found a textfile as the query input.\n'
+              'Searching for paths to FASTA-files in {}\n'.format(query))
+        with open(query, 'r') as fasta_list:
+            query_list = fasta_list.read().splitlines()
+            isfasta = []
+            for query_path in query_list:
+                if (
+                    os.path.isfile(query_path)
+                    and query_path.split('.')[-1] == 'fa'
+                ):
+                    isfasta.append(query_path)
+                else:
+                    print('{} is not a valid FASTA file.\n'
+                          'Skipping..'.format(query_path))
+                    continue
+            print('Found {} paths to valid FASTA files in the query input file\n'.format(len(isfasta)))
+
+            for fasta_path in isfasta:
+                query_species = fasta_path.split('/')[-1]
+                print('### Starting search for miRNAs in\n'
+                      '### {}'.format(query_species))
+                hits = ncortho(mirnas, models, output, msl, cpu, fasta_path, cm_cutoff, ref_blast_db)
+                hit_dict[query_species] = hits
+
+    elif os.path.isdir(query):
+        print('Query genomes given as directory.\n'
+              'Searching for FASTA files in {}'.format(query))
+        dir_files = glob.glob(query + '/*')
+        isfasta = [file for file in dir_files if file.split('.')[-1] == 'fa']
+        print('Found {} valid FASTA files in the query input directory\n'.format(len(isfasta)))
+        for fasta_path in isfasta:
+            query_species = fasta_path.split('/')[-1]
+            print('### Starting search for miRNAs in\n'
+                  '### {}'.format(query_species))
+            hits = ncortho(mirnas, models, output, msl, cpu, fasta_path, cm_cutoff, ref_blast_db)
+            hit_dict[query_species] = hits
+    else:
+        print('No valid query found. Exiting..')
+        sys.exit()
+
+
+    print('This is the final output')
+    print(hit_dict)
+
+
+
+    #hits = ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db)
+
+    #print(hits)
 
 
 if __name__ == "__main__":

@@ -47,9 +47,8 @@ class CmConstructor(object):
         print('# Finished covariance model calibration.')
 
 
-def create_cm(alignment,output,cpu):
+def create_cm(alignment, output, cpu):
 
-    
     # Check if computer provides the desired number of cores.
     available_cpu = mp.cpu_count()
     if cpu > available_cpu:

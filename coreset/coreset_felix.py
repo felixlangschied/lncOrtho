@@ -492,33 +492,75 @@ def main():
     noHits = []
     for mirna in mirnas:
         mirid = mirna[0]
-        if os.path.isfile('{0}/{1}/{1}.fa'.format(output, mirid)):
+        if os.path.isfile('{0}/{1}/{1}_core.fa'.format(output, mirid)):
+            print(
+                'Fasta file with reciprocal hits already exists at:'
+                '{}/{}\n'
+                'Skipping..'
+                .format(output, mirid)
+                  )
+            continue
+        elif os.path.isfile('{0}/{1}/{1}.fa'.format(output, mirid)):
             # calculate and write results of reciprocal BLAST search
             blast_search(mirna, ref_genome, output, cpu)
+            if not os.path.isfile('{0}/{1}/{1}_core.fa'.format(output, mirid)):
+                noHits.append(mirid)
         else:
             print("No Hits found for {}, skipping...".format(mirid))
             noHits.append(mirid)
 
     if noHits:
-        print('Saving names of  skipped ncRNAs at {}/noHits.txt'.format(output))
-        with open('{}/noHits.txt'.format(output),'w') as outfile:
+        print('Saving names of  ncRNAs with no hits at {}/noHits.txt'.format(output))
+        with open('{}/noHits.txt'.format(output), 'w') as outfile:
             outfile.write('\n'.join(noHits))
             outfile.write('\n')
         for fail in noHits:
-            rm_cmd = 'rm -r {0}/{1}'.format(output,fail)
-            sp.call(rm_cmd, shell=True)
+            print('this is a fail: {}'.format(fail))
+            if os.path.isdir('{0}/{1}'.format(output, fail)):
+                rm_cmd = 'rm -r {0}/{1}'.format(output, fail)
+                sp.call(rm_cmd, shell=True)
+
+
+    # Cleanup extra T-coffee files
+    run_path = os.getcwd()
+    trash_paths = glob.glob('{}/*.template_list'.format(run_path))
+    for trash in trash_paths:
+        sp.call('rm {}'.format(trash), shell=True)
+    sp.call('rm {}/alirna.ps'.format(run_path), shell=True)
 
 
     print('\n#########################')
     print('### Creating CMs ###')
     print('#########################\n')
 
+    notreciproc = []
     cm_output = output + '/' + 'core_models'
     for mirna in mirna_dict:
         align_path = '{0}/{1}/{1}.sto'.format(output, mirna)
-        if os.path.isfile(align_path):
+        if mirna in noHits:
+            continue
+        elif os.path.isfile('{}/{}.cm'.format(cm_output, mirna)):
+            print(
+                'CM of {} already exists in {}.\n'
+                'Skipping..\n'.format(mirna, cm_output)
+            )
+            continue
+        elif os.path.isfile(align_path):
             with open(align_path, 'r') as infile:
                 create_cm(infile.name, cm_output, cpu)
+        else:
+            print('No alignment file found for {}.\n'
+                  'Added to list of ncRNAs that were not the best reciprocal hit'.format(mirna))
+            notreciproc.append(mirna)
+
+    if notreciproc:
+        print('Saving names of ncRNAs that were not the best reciprocal hit at {}/notReciproc.txt'.format(output))
+        with open('{}/notReciproc.txt'.format(output),'w') as outfile:
+            outfile.write('\n'.join(notreciproc))
+            outfile.write('\n')
+        for fail in notreciproc:
+            rm_cmd = 'rm -r {0}/{1}'.format(output, fail)
+            sp.call(rm_cmd, shell=True)
 
 if __name__ == '__main__':
     main()
