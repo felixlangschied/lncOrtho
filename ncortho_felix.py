@@ -61,8 +61,8 @@ def main():
     )
     # reference genome blastDB
     parser.add_argument(
-        '-r', '--reference', metavar='<.fa>', type=str,
-        help='Path to reference genome as fasta file or to an existing BlastDB of the reference genome (DB basename)'
+        '-r', '--reference', metavar='<basename>', type=str,
+        help='Path to reference genome as fasta file or to an existing BlastDB of the reference genome'
     )
     # bit score cutoff for cmsearch hits
     parser.add_argument(
@@ -81,6 +81,11 @@ def main():
     else:
         args = parser.parse_args()
 
+
+    #########################
+    # Parse input arguments #
+    #########################
+
     # Check if computer provides the desired number of cores.
     available_cpu = mp.cpu_count()
     if args.cpu > available_cpu:
@@ -92,19 +97,13 @@ def main():
     else:
         cpu = args.cpu
 
-    # TODO: include checks for validity of arguments
-    # os.getcwd()
-    # os.chdir(path)
-    # os.path.exists(path)
-    # os.path.isfile(path)
-    # os.path.isdir(path)
-
     mirnas = args.ncrna
     models = args.models
     output = args.output
     query = args.query
     reference = args.reference
     cm_cutoff = args.cutoff
+
     # Not in use yet
     msl = args.msl
     # blast_cutoff = args.blastc
@@ -112,6 +111,33 @@ def main():
     ##################################
     # Checking Validity of Arguments #
     ##################################
+
+    # covariance models folder
+    if os.path.isdir(models):
+        model_filesuff = [suff.split('.')[-1] for suff in glob.glob(models + '/*')]
+        if 'cm' in model_filesuff:
+            print('Found covariance models.\n')
+        else:
+            print('No valid covariance models (<.cm>) found in {}.\n'
+                  'Please check your input.\n'
+                  'Exiting..'
+                  .format(models))
+            sys.exit()
+    else:
+        print('Covariance models must be supplied as a directory that contains valid models (<.cm>)\n'
+              'Exiting..')
+        sys.exit()
+
+    # mirna data
+    if os.path.isfile(mirnas):
+        print('File with miRNAs found')
+        # consistency of file will be checked by ncortho_main.py and mirna_maker.py
+    else:
+        print('Could not locate file with miRNAs.\n'
+              'Exiting..')
+        sys.exit()
+
+    # output folder will be created by ncortho_main.py
 
     # check how the reference is given
     # test if reference DB exists or has to be created
@@ -176,10 +202,8 @@ def main():
                 )
                 sys.exit()
 
-    ##############################################################################
-
     # check type of query: single FASTA-file, Folder with FASTA-files or txt document with paths to FASTA files
-    # TODO: Write summary output to file
+    # TODO: Write summary output to file, per species or per miRNA or both?
     #variable for saving summary output
     hit_dict = {}
     if (
@@ -214,7 +238,7 @@ def main():
             for fasta_path in isfasta:
                 query_species = fasta_path.split('/')[-1]
                 print('### Starting search for miRNAs in\n'
-                      '### {}'.format(query_species))
+                      '### {}\n'.format(query_species))
                 hits = ncortho(mirnas, models, output, msl, cpu, fasta_path, cm_cutoff, ref_blast_db)
                 hit_dict[query_species] = hits
 
@@ -227,7 +251,7 @@ def main():
         for fasta_path in isfasta:
             query_species = fasta_path.split('/')[-1]
             print('### Starting search for miRNAs in\n'
-                  '### {}'.format(query_species))
+                  '### {}\n'.format(query_species))
             hits = ncortho(mirnas, models, output, msl, cpu, fasta_path, cm_cutoff, ref_blast_db)
             hit_dict[query_species] = hits
     else:

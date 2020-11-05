@@ -1,6 +1,6 @@
 import os
 import subprocess as sp
-import glob
+import sys
 
 from lib.blastparser_felix import BlastParser
 from lib.genparser_felix import GenomeParser
@@ -30,9 +30,18 @@ def blast_search(s, ref_blast_db, o, c):
     )
     sp.call(blast_command, shell=True)
 
+
 def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
     # Create miRNA objects from the list of input miRNAs.
-    mirna_dict = mirna_maker(mirnas, models, output, msl)
+    try:
+        mirna_dict = mirna_maker(mirnas, models, output, msl)
+    except TypeError:
+        print('Could not parse the provided miRNA file.'
+              'Please check the format of your file at:\n'
+              '{}\n'
+              'Exiting..'.format(mirnas))
+        sys.exit()
+
 
     # Create Outdict:
     mirout_dict = {}
@@ -45,7 +54,11 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
         outdir = '{}/{}'.format(output, mirna_id)
         # Create output folder, if not existent.
         if not os.path.isdir(outdir):
-            sp.call('mkdir {}'.format(outdir), shell=True)
+            try:
+                sp.run('mkdir {}'.format(outdir), shell=True, check=True, stderr=sp.PIPE)
+            except sp.CalledProcessError:
+                print('Could not create output folder at\n'
+                      '{}'.format(outdir))
         print('\n# Running covariance model search for {}.'.format(mirna_id))
         cms_output = '{0}/cmsearch_{1}.out'.format(outdir, mirna_id)
         # Calculate the bit score cutoff.
@@ -105,8 +118,6 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
             bp = BlastParser(mirna, blast_output, msl)
             if bp.parse_blast_output():
                 accepted_hits[candidate] = sequence
-                #out_info = [bp.sseqid, bp.sstart, bp.send, sequence]
-                #accepted_hits[candidate] = out_info
 
         # Write output file if at least one candidate got accepted.
         if accepted_hits:
@@ -125,11 +136,16 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
 
             print('These are the accepted_hits')
             print(accepted_hits)
-            print('Trying to update')
+
             out_dict = {}
             for key in accepted_hits:
                 out_dict[key] = (accepted_hits[key], cm_results[key])
-            return(out_dict)
+            print('this is the out_dict')
+            print(out_dict)
+            print('Trying to update')
+            mirout_dict.update(out_dict)
+            print(mirout_dict)
+            return(mirout_dict)
         else:
             print(
                 '# None of the candidates for {} could be verified.\n'
