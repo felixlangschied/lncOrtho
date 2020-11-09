@@ -8,7 +8,8 @@ from utils.oma_lib.ensembl2oma import map_ensembl2OMA
 from utils.oma_lib.ensembl2oma import find_core_ortholog
 from utils.oma_lib.ensembl2oma import map_OMA2ensembl
 
-def oma_parser(r_gtf, c_gtf, ens2oma_map, oma_groups):
+
+def oma_parser(r_gtf, c_gtf, ens2oma_map, oma_groups, output):
     # parse gtfs
     # load gtf paths into list
     core_paths = []
@@ -52,7 +53,7 @@ def oma_parser(r_gtf, c_gtf, ens2oma_map, oma_groups):
     no_oma_taxon = []
     for core in core_paths:
         core_oma = findOMAprefix_fromEnsemblGTF(core, ens2oma_map)
-        if core_oma == None:
+        if core_oma is None:
             no_oma_taxon.append(core)
         else:
             core_oma_ids.append(core_oma)
@@ -89,7 +90,6 @@ def oma_parser(r_gtf, c_gtf, ens2oma_map, oma_groups):
         print('Could not find oma ids for {} ensembl ids\n'.format(len(no_oma)))
     del ensembl_ids
 
-    #print(map_dict)
 
     print('Starting to map reference OMA ids to the OMA groups\n')
 
@@ -107,31 +107,32 @@ def oma_parser(r_gtf, c_gtf, ens2oma_map, oma_groups):
                 ref_oma2rest_oma[hit] = line_list
 
 
-    taxon_suff = core_oma_ids[0]
-    print('Starting to extract orthologs from the OMA groups for:\n'
-          '## {} ##'.format(taxon_suff))
-    core_oma2ref_ens = find_core_ortholog(map_dict, ref_oma2rest_oma, taxon_suff)
+    for taxon_suff in core_oma_ids:
+        print('Starting to extract orthologs from the OMA groups for:\n'
+              '## {} ##'.format(taxon_suff))
+        core_oma2ref_ens = find_core_ortholog(map_dict, ref_oma2rest_oma, taxon_suff)
 
-    # map OMA ids of the core species back to the ensembl IDs
-    core_omas = core_oma2ref_ens.keys()
-    core_map = map_OMA2ensembl(core_omas, ens2oma_map)
+        # map OMA ids of the core species back to the ensembl IDs
+        core_omas = core_oma2ref_ens.keys()
+        core_map = map_OMA2ensembl(core_omas, ens2oma_map)
 
-    final_dict = {}
-    for oma_id in core_oma2ref_ens:
-        key = core_oma2ref_ens[oma_id]
-        value = core_map[oma_id]
-        final_dict[key] = value
+        final_dict = {}
+        for oma_id in core_oma2ref_ens:
+            key = core_oma2ref_ens[oma_id]
+            value = core_map[oma_id]
+            final_dict[key] = value
 
-    #write output
+        #write output
+        outpath = '{}/{}.tsv'.format(output, taxon_suff)
+        with open(outpath, 'w') as outfile:
+            for key, value in final_dict.items():
+                outfile.write('{}\t{}\n'.format(key, value))
 
+        #print(final_dict)
+        print('Wrote {} pairwise orthologs between {} and the reference species to {}'
+              .format(len(final_dict), taxon_suff, outpath))
 
-    #print(final_dict)
-    print(len(final_dict))
-
-
-
-
-
+# TODO: check for lost genes
 
 
 
@@ -142,7 +143,8 @@ c_gtf = '/home/felixl/Desktop/tmp/gft_input.txt'
 ens2oma_map = '/share/project/felixl/ncOrtho/data/oma/oma-ensembl.txt'
 oma_groups = '/share/project/felixl/ncOrtho/data/oma/oma-groups.txt'
 r_gtf = '/share/project/felixl/ncOrtho/data/mouse_ref_core/reference_data/Mus_musculus.GRCm38.101.gtf'
+output = '/home/felixl/PycharmProjects/ncOrtho/utils'
 
-oma_parser(r_gtf, c_gtf, ens2oma_map, oma_groups)
+oma_parser(r_gtf, c_gtf, ens2oma_map, oma_groups, output)
 
 
