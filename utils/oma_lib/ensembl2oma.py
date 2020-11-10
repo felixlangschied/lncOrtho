@@ -90,6 +90,7 @@ def map_ensembl2OMA(ensembl_ids, ens2oma_map):
 
 def find_core_ortholog(map_dict, ref_oma2rest_oma, taxon_suff):
     out_dict = {}
+
     for ens_id in map_dict:
         oma_ids = map_dict[ens_id]
         if type(oma_ids) == str:
@@ -98,6 +99,8 @@ def find_core_ortholog(map_dict, ref_oma2rest_oma, taxon_suff):
             oma_iterator = oma_ids
 
         for oma_id in oma_iterator:
+            tmp_list = []
+            no_hits = []
             try:
                 searchstring = str(ref_oma2rest_oma[oma_id])
             except KeyError:
@@ -105,8 +108,17 @@ def find_core_ortholog(map_dict, ref_oma2rest_oma, taxon_suff):
             hit = re.search(taxon_suff + '\d+', searchstring)
             if hit:
                 core_ortholog = hit.group()
-                out_dict[core_ortholog] = ens_id
-    return out_dict
+                if core_ortholog not in out_dict:
+                    out_dict[core_ortholog] = ens_id
+                else:
+                    print('lala')
+                    tmp_list = out_dict[core_ortholog]
+                    tmp_list.append(ens_id)
+                    out_dict[core_ortholog] = tmp_list
+                    print(out_dict[core_ortholog])
+            else:
+                no_hits.append(oma_id)
+    return out_dict, no_hits
 
 
 ##########################################################################
