@@ -7,6 +7,7 @@ class Mirna(object):
         # miRNA identifier
         self.name = name
         # chromosome that the miRNA is located on
+        # downloads from miRBase contain "chr" prefix which leads to inconsistency
         self.chromosome = chromosome
         # start position of the pre-miRNA
         self.start = int(start)
@@ -45,7 +46,7 @@ def mirna_maker(mirpath, cmpath, output, msl):
         # Check if the output folder exists, otherwise create it.
         if not os.path.isdir('{}/{}'.format(output, mirid)):
             try:
-                mkdir = 'mkdir {}/{}'.format(output, mirid)
+                mkdir = 'mkdir -p {}/{}'.format(output, mirid)
                 sp.call(mkdir, shell=True)
             except:
                 print(
@@ -54,12 +55,17 @@ def mirna_maker(mirpath, cmpath, output, msl):
                 )
                 continue
 
+        # check if 'chr' prefix from miRBase exists and delete it
+        if 'chr' in mirna[1]:
+            mirna[1] = mirna[1].replace('chr', '')
+
         # Obtain the reference bit score for each miRNA by applying it
         # to its own covariance model.
         print('# Calculating reference bit score for {}.'.format(mirid))
         seq = mirna[5]
         query = '{0}/{1}/{1}.fa'.format(output, mirid)
         model = '{0}/{1}.cm'.format(cmpath, mirid)
+
 
         # Check if the covariance model even exists, otherwise skip to
         # the next miRNA.
@@ -108,6 +114,7 @@ def mirna_maker(mirpath, cmpath, output, msl):
             tmp_mir.loadSeq(mirna[6], 'mat')
         else:
             tmp_mir.loadSeq(None, 'mat')
+
 
         # Create output.
         mmdict[mirna[0]] = tmp_mir
