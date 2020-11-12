@@ -1,3 +1,8 @@
+"""
+This tool will write the 1:1 oma orthologs between a reference species and a set of core species to respective files.
+Since the OMA groups file contains only 1:1 orthologs, extracting the OMAid-prefix with the findOMAprefix_fromEnsemblGTF
+function and then using the genome pair view service on: https://omabrowser.org/oma/genomePW/ might be all you need.
+"""
 
 import os
 import glob
@@ -93,6 +98,7 @@ def oma_parser(r_gtf, c_gtf, ens2oma_map, oma_groups, output):
 
     print('Starting to map reference OMA ids to the OMA groups\n')
 
+
     # load dictionary with reference OMAid as key and all other OMAids
     # of the orthologous group as the values
     ref_oma2rest_oma = {}
@@ -106,11 +112,17 @@ def oma_parser(r_gtf, c_gtf, ens2oma_map, oma_groups, output):
                 line_list.remove(hit)
                 ref_oma2rest_oma[hit] = line_list
 
+    print('Found orthologous groups for {} reference OMA ids\n'.format(len(ref_oma2rest_oma)))
+
 
     for taxon_suff in core_oma_ids:
         print('Starting to extract orthologs from the OMA groups for:\n'
               '## {} ##'.format(taxon_suff))
-        core_oma2ref_ens = find_core_ortholog(map_dict, ref_oma2rest_oma, taxon_suff)
+        core_oma2ref_ens, no_hit = find_core_ortholog(map_dict, ref_oma2rest_oma, taxon_suff)
+
+        print('Found {} OMA ids with the {} taxon suffix.\n'.format(len(core_oma2ref_ens), taxon_suff))
+        print('Found no hits for these OMAids:\n'
+              '{}'.format(no_hit))
 
         # map OMA ids of the core species back to the ensembl IDs
         core_omas = core_oma2ref_ens.keys()
@@ -132,7 +144,6 @@ def oma_parser(r_gtf, c_gtf, ens2oma_map, oma_groups, output):
         print('Wrote {} pairwise orthologs between {} and the reference species to {}'
               .format(len(final_dict), taxon_suff, outpath))
 
-# TODO: check for lost genes
 
 
 
