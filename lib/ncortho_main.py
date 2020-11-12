@@ -11,10 +11,10 @@ from lib.mirna_maker import mirna_maker
 # Arguments:
 # a: dictionary of accepted hits
 # o: path for output
-def write_output(a, o):
-    with open(o, 'w') as outfile:
-        for hit in a:
-            outfile.write('>{0}\n{1}\n'.format(hit, a[hit]))
+# def write_output(a, o):
+#     with open(o, 'w') as outfile:
+#         for hit in a:
+#             outfile.write('>{0}\n{1}\n'.format(hit, a[hit]))
 
 # blast_search: Perform a reverse BLAST search in the reference genome for a
 # candidate.
@@ -22,7 +22,7 @@ def write_output(a, o):
 # o: output for the blastsearch
 # c: number of threads
 # ref_blast_db: blastDB of the reference genome (tested and created in ncortho_main.py)
-def blast_search(s, ref_blast_db, o, c):
+def blast_search(ref_blast_db, s, o, c):
 
     blast_command = (
         'blastn -task blastn -db {0} -query {1} '
@@ -65,18 +65,25 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
         cut_off = mirna.bit * cm_cutoff
         # Calculate the length cutoff.
         len_cut = len(mirna.pre) * msl
-        # Perform covariance model search.
-        # Report and inclusion thresholds set according to cutoff.
-        cms_command = (
-            'cmsearch -T {5} --incT {5} --cpu {0} --noali '
-            '--tblout {1} {2}/{3}.cm {4}'
-                .format(cpu, cms_output, models, mirna_id, query, cut_off)
-        )
-        sp.call(cms_command, shell=True)
-        cm_results = cmsearch_parser(cms_output, cut_off, len_cut, mirna_id)
 
-        print('These are the cm_results')
-        print(cm_results)
+        # check if cm-search was already run, otherwise read from file
+        cmparse_results = '{0}/CMresults_{1}.txt'.format(outdir, mirna_id)
+        if not os.path.isfile(cmparse_results):
+            # Perform covariance model search.
+            # Report and inclusion thresholds set according to cutoff.
+            cms_command = (
+                'cmsearch -T {5} --incT {5} --cpu {0} --noali '
+                '--tblout {1} {2}/{3}.cm {4}'
+                .format(cpu, cms_output, models, mirna_id, query, cut_off)
+            )
+            sp.call(cms_command, shell=True)
+            cm_results = cmsearch_parser(cms_output, cut_off, len_cut, mirna_id)
+
+            with open(cmparse_results, 'w') as file:
+                file.write(str(cm_results))
+        else:
+            with open(cmparse_results, 'r') as file:
+                cm_results = eval(file.read())
 
         # Extract sequences for candidate hits (if any were found).
         if not cm_results:
@@ -85,7 +92,6 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
         else:
             gp = GenomeParser(query, cm_results.values())
             candidates = gp.extract_sequences()
-            #print(candidates)
             nr_candidates = len(candidates)
             if nr_candidates == 1:
                 print(
@@ -104,17 +110,15 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
         # a list (accepted_hits).
         accepted_hits = {}
         for candidate in candidates:
-            # print('This is a candidate:')
-            # print(candidate)
             sequence = candidates[candidate]
             temp_fasta = '{0}/{1}.fa'.format(outdir, candidate)
             # TODO: change BlastParser to take query directly from command-line
             #       to avoid creating temporary files
             with open(temp_fasta, 'w') as tempfile:
-                tempfile.write('>{0}\n{1}'.format(candidate, sequence))
+                tempfile.write('>{0}\n{1}\n'.format(candidate, sequence))
             blast_output = '{0}/blast_{1}.out'.format(outdir, candidate)
 
-            blast_search(temp_fasta, ref_blast_db, blast_output, cpu)
+            blast_search(ref_blast_db, temp_fasta, blast_output, cpu)
             bp = BlastParser(mirna, blast_output, msl)
             if bp.parse_blast_output():
                 accepted_hits[candidate] = sequence
@@ -127,25 +131,18 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
             else:
                 print(
                     '# ncOrtho found {} verified orthologs.\n'
-                        .format(nr_orthologs)
+                    .format(nr_orthologs)
                 )
-            print('# Writing output of accepted candidates.\n')
-            outpath = '{0}/{1}_orthologs.fa'.format(outdir, mirna_id)
-            write_output(accepted_hits, outpath)
-            print('# Finished writing output.\n')
-
-            print('These are the accepted_hits')
-            print(accepted_hits)
+            #print('# Writing output of accepted candidates.\n')
+            #outpath = '{0}/{1}_orthologs.fa'.format(outdir, mirna_id)
+            #write_output(accepted_hits, outpath)
+            #print('# Finished writing output.\n')
 
             out_dict = {}
             for key in accepted_hits:
                 out_dict[key] = (accepted_hits[key], cm_results[key])
-            print('this is the out_dict')
-            print(out_dict)
-            print('Trying to update')
             mirout_dict.update(out_dict)
-            print(mirout_dict)
-            return(mirout_dict)
+
         else:
             print(
                 '# None of the candidates for {} could be verified.\n'
@@ -153,3 +150,4 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
             )
             print('# No hits found for {}.\n'.format(mirna_id))
         print('# Finished ortholog search for {}.'.format(mirna_id))
+    return mirout_dict
