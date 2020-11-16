@@ -85,22 +85,18 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
         accepted_hits = {}
         for candidate in candidates:
             sequence = candidates[candidate]
-            temp_fasta = '{0}/{1}.fa'.format(outdir, candidate)
-            # TODO: change BlastParser to take query directly from command-line
-            #       to avoid creating temporary files
-            with open(temp_fasta, 'w') as tempfile:
-                tempfile.write('>{0}\n{1}\n'.format(candidate, sequence))
-            blast_output = '{0}/blast_{1}.out'.format(outdir, candidate)
-
-            # blast_command = (
-            #     'blastn -task blastn -db {0} -query {1} '
-            #     '-out {2} -num_threads {3} -outfmt 6'.format(ref_blast_db, temp_fasta, blast_output, cpu)
-            # )
-            blast_command = (
-                'blastn -task blastn -db {0} -query {1} '
-                '-out {2} -num_threads {3} -outfmt 6'.format(ref_blast_db, temp_fasta, blast_output, cpu)
+            blast_cmd = (
+                'blastn -task blastn -db {0} -num_threads {1} '
+                '-outfmt 6 -query <(echo -e \">{2}\\n{3}\")'.format(ref_blast_db, cpu, candidate, sequence)
             )
-            sp.run(blast_command, shell=True, )
+
+            p = sp.Popen(blast_cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=True, executable='/bin/bash')
+            blast_output, err = p.communicate()
+            if not err:
+                blast_output = blast_output.decode('utf-8')
+            else:
+                print(err)
+                exit()
 
             bp = BlastParser(mirna, blast_output, msl)
             if bp.parse_blast_output():
@@ -125,7 +121,7 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
         else:
             print(
                 '# None of the candidates for {} could be verified.\n'
-                    .format(mirna_id)
+                .format(mirna_id)
             )
             print('# No hits found for {}.\n'.format(mirna_id))
         print('# Finished ortholog search for {}.'.format(mirna_id))
