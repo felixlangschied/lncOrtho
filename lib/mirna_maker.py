@@ -1,6 +1,7 @@
 import os
 import subprocess as sp
 
+
 # Central class of microRNA objects
 class Mirna(object):
     def __init__(self, name, chromosome, start, end, strand):
@@ -114,7 +115,6 @@ def mirna_maker(mirpath, cmpath, output, msl):
             tmp_mir.loadSeq(mirna[6], 'mat')
         else:
             tmp_mir.loadSeq(None, 'mat')
-
 
         # Create output.
         mmdict[mirna[0]] = tmp_mir
