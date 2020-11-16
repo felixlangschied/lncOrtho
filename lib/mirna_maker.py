@@ -17,10 +17,10 @@ class Mirna(object):
         # sense (+) or anti-sense (-) strand
         self.strand = strand
 
-    def loadSeq(self, seq, type):
-        if type == 'pre':
+    def loadSeq(self, seq, typ):
+        if typ == 'pre':
             self.pre = seq
-        elif type == 'mat':
+        elif typ == 'mat':
             self.mat = seq
 
 
@@ -84,7 +84,7 @@ def mirna_maker(mirpath, cmpath, output, msl):
         cms_log = '{0}/{1}/cmsearch_{1}.log'.format(output, mirid)
         cms_command = (
             'cmsearch -E 0.01 --noali -o {3} --tblout {0} {1} {2}'
-                .format(cms_output, model, query, cms_log)
+            .format(cms_output, model, query, cms_log)
         )
         sp.call(cms_command, shell=True)
         with open(cms_output) as cmsfile:

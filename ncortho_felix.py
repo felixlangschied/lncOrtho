@@ -90,7 +90,10 @@ def main():
     parser.add_argument(
         # '-x', '--cleanup', metavar='True/False', type=bool, default=True,
         '-x', '--cleanup', type=str2bool, metavar='True/False', nargs='?', const=True, default=True,
-        help='Cleanup temporary files. Set to False when running an analysis multiple times'
+        help=(
+            'Cleanup temporary files of the CM search. '
+            'Set to False when running an analysis multiple times to massively decrease runtime'
+        )
     )
     # Show help when no arguments are added.
     if len(sys.argv) == 1:
@@ -170,8 +173,7 @@ def main():
     ):
         print(
             'Reference given as FASTA file, testing if BlastDB exists in\n'
-            '{}'
-                .format(out_data)
+            '{}'.format(out_data)
         )
         if not os.path.isdir(out_data):
             mkdir_cmd = 'mkdir {}'.format(out_data)
@@ -205,7 +207,7 @@ def main():
             print(
                 'BLAST database for the given reference does not exist.\n'
                 'Trying to construct a BLAST database from {}.'
-                    .format(reference)
+                .format(reference)
             )
             try:
                 db_command = 'makeblastdb -in {} -out {}/{} -dbtype nucl'.format(reference, out_data, db_name)
@@ -263,8 +265,11 @@ def main():
         taxon_out = '{}/{}.tsv'.format(output, query_species)
         print('### Starting search for miRNAs in\n'
               '### {}\n'.format(query_species))
-        hits = ncortho(mirnas, models, taxon_dir, msl, cpu, fasta_path, cm_cutoff, ref_blast_db)
-
+        if os.path.isfile(taxon_out):
+            print('Output file already found at {}.\nSkipping..'.format(taxon_out))
+            continue
+        else:
+            hits = ncortho(mirnas, models, taxon_dir, msl, cpu, fasta_path, cm_cutoff, ref_blast_db)
         # write output
         print('# Writing output at {}\n'.format(taxon_out))
         with open(taxon_out, 'w') as of:
@@ -285,7 +290,6 @@ def main():
         del hits
 
     print('### ncOrtho has finished!\n')
-
 
 if __name__ == "__main__":
     main()
