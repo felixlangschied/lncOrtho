@@ -17,6 +17,18 @@ import subprocess as sp
 from lib.ncortho_main import ncortho
 
 
+# Allow boolean argument parsing
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
 ###############################################################################
 
 # Main function
@@ -76,8 +88,9 @@ def main():
     )
     # cleanup
     parser.add_argument(
-        '-x', '--cleanup', metavar='True/False', type=bool,
-        help='should ncOrtho delete all intermediate files', nargs='?', default=True
+        # '-x', '--cleanup', metavar='True/False', type=bool, default=True,
+        '-x', '--cleanup', type=str2bool, metavar='True/False', nargs='?', const=True, default=True,
+        help='Cleanup temporary files. Set to False when running an analysis multiple times'
     )
     # Show help when no arguments are added.
     if len(sys.argv) == 1:
@@ -85,7 +98,6 @@ def main():
         sys.exit(1)
     else:
         args = parser.parse_args()
-
 
     #########################
     # Parse input arguments #
@@ -109,16 +121,12 @@ def main():
     reference = args.reference
     cm_cutoff = args.cutoff
     cleanup = args.cleanup
-
-    # Not in use yet
     msl = args.msl
     # blast_cutoff = args.blastc
 
     ##################################
     # Checking Validity of Arguments #
     ##################################
-
-    # TODO: remove '/' at the end of path inputs
 
     # covariance models folder
     if os.path.isdir(models):
@@ -163,7 +171,7 @@ def main():
         print(
             'Reference given as FASTA file, testing if BlastDB exists in\n'
             '{}'
-            .format(out_data)
+                .format(out_data)
         )
         if not os.path.isdir(out_data):
             mkdir_cmd = 'mkdir {}'.format(out_data)
@@ -197,7 +205,7 @@ def main():
             print(
                 'BLAST database for the given reference does not exist.\n'
                 'Trying to construct a BLAST database from {}.'
-                .format(reference)
+                    .format(reference)
             )
             try:
                 db_command = 'makeblastdb -in {} -out {}/{} -dbtype nucl'.format(reference, out_data, db_name)
@@ -212,32 +220,25 @@ def main():
                 sys.exit()
 
     # check type of query: single FASTA-file, Folder with FASTA-files or txt document with paths to FASTA files
-    # TODO: Write summary output to file, per species or per miRNA or both?
-    # TODO: Cleanup folders with no hits
-    #variable for saving summary output
-    hit_dict = {}
+    isfasta = []
     if (
-        os.path.isfile(query)
-        and query.split('.')[-1] == 'fa'
+            os.path.isfile(query)
+            and query.split('.')[-1] == 'fa'
     ):
         print('Query given as single FASTA-file. Starting anaysis\n')
-        query_species = query.split('/')[-1].split('.')[0]
-        taxon_out = '{}/{}'.format(output, query_species)
-        hits = ncortho(mirnas, models, taxon_out, msl, cpu, query, cm_cutoff, ref_blast_db)
-        hit_dict[query_species] = hits
+        isfasta.append(query)
     elif (
-        os.path.isfile(query)
-        and query.split('.')[-1] == 'txt'
+            os.path.isfile(query)
+            and query.split('.')[-1] == 'txt'
     ):
         print('Found a textfile as the query input.\n'
               'Searching for paths to FASTA-files in {}\n'.format(query))
         with open(query, 'r') as fasta_list:
             query_list = fasta_list.read().splitlines()
-            isfasta = []
             for query_path in query_list:
                 if (
-                    os.path.isfile(query_path)
-                    and query_path.split('.')[-1] == 'fa'
+                        os.path.isfile(query_path)
+                        and query_path.split('.')[-1] == 'fa'
                 ):
                     isfasta.append(query_path)
                 else:
@@ -245,57 +246,46 @@ def main():
                           'Skipping..'.format(query_path))
                     continue
             print('Found {} paths to valid FASTA files in the query input file\n'.format(len(isfasta)))
-
-            for fasta_path in isfasta:
-                query_species = fasta_path.split('/')[-1].split('.')[0]
-                taxon_out = '{}/{}'.format(output, query_species)
-                print('### Starting search for miRNAs in\n'
-                      '### {}\n'.format(query_species))
-                hits = ncortho(mirnas, models, taxon_out, msl, cpu, fasta_path, cm_cutoff, ref_blast_db)
-                hit_dict[query_species] = hits
-
     elif os.path.isdir(query):
         print('Query genomes given as directory.\n'
               'Searching for FASTA files in {}'.format(query))
         dir_files = glob.glob(query + '/*')
         isfasta = [file for file in dir_files if file.split('.')[-1] == 'fa']
         print('Found {} valid FASTA files in the query input directory\n'.format(len(isfasta)))
-        for fasta_path in isfasta:
-            query_species = fasta_path.split('/')[-1].split('.')[0]
-            taxon_out = '{}/{}'.format(output, query_species)
-            print('### Starting search for miRNAs in\n'
-                  '### {}\n'.format(query_species))
-            hits = ncortho(mirnas, models, taxon_out, msl, cpu, fasta_path, cm_cutoff, ref_blast_db)
-            hit_dict[query_species] = hits
     else:
         print('No valid query found. Exiting..')
         sys.exit()
 
-    # write output
-    summary_out = '{}/{}_results.fa'.format(output, mirnas.split('/')[-1].split('.')[0])
-    print('# Writing summary output at {}\n'.format(summary_out))
-    with open(summary_out, 'w') as of:
-        of.write('# Taxon\tmiRNA\tStart in query genome\tEnd in query genome\tstrand\n')
-        for taxon in hit_dict:
-            mir_dict = hit_dict[taxon]
-            for mirna in mir_dict:
-                seq = list(mir_dict[mirna])[0]
-                info = list(list(mir_dict[mirna])[1])
+    # run each taxon
+    for fasta_path in isfasta:
+        query_species = fasta_path.split('/')[-1].split('.')[0]
+        taxon_dir = '{}/{}'.format(output, query_species)
+        taxon_out = '{}/{}.tsv'.format(output, query_species)
+        print('### Starting search for miRNAs in\n'
+              '### {}\n'.format(query_species))
+        hits = ncortho(mirnas, models, taxon_dir, msl, cpu, fasta_path, cm_cutoff, ref_blast_db)
+
+        # write output
+        print('# Writing output at {}\n'.format(taxon_out))
+        with open(taxon_out, 'w') as of:
+            of.write('# Taxon\tmiRNA\tStart in query genome\tEnd in query genome\tstrand\n')
+            for mirna in hits:
+                seq = list(hits[mirna])[0]
+                info = list(list(hits[mirna])[1])
                 info[0] = info[0].split('_')[0]
                 info = '\t'.join(info[:-1])
-                header = '>{}\t{}'.format(taxon, info)
+                header = '>{}\t{}'.format(query_species, info)
                 of.write(header + '\n')
                 of.write(seq + '\n')
-
+        # cleanup
+        if cleanup:
+            print('# Cleaning up..\n')
+            clean_cmd = 'rm -r {}'.format(taxon_dir)
+            sp.run(clean_cmd, shell=True)
+        del hits
 
     print('### ncOrtho has finished!\n')
-    # cleanup
-    if cleanup:
-        print('# Cleaning up..\n')
-        for taxon in hit_dict:
-            taxon_out = '{}/{}'.format(output, taxon)
-            clean_cmd = 'rm -r {}'.format(taxon_out)
-            sp.run(clean_cmd, shell=True)
+
 
 if __name__ == "__main__":
     main()
