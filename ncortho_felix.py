@@ -16,7 +16,6 @@ import subprocess as sp
 # internal modules
 from lib.ncortho_main import ncortho
 
-
 # Allow boolean argument parsing
 def str2bool(v):
     if isinstance(v, bool):
@@ -86,13 +85,17 @@ def main():
         '-l', '--msl', metavar='float', type=float,
         help='hit length filter', nargs='?', const=0.9, default=0.9
     )
+    # test only best cmsearch hits
+    parser.add_argument(
+        '-k', '--blast_cutoff', metavar='int', type=int,
+        help='Number of cmsearch hits that are subjected to reverse search', nargs='?', const=10, default=10
+    )
     # cleanup
     parser.add_argument(
         # '-x', '--cleanup', metavar='True/False', type=bool, default=True,
-        '-x', '--cleanup', type=str2bool, metavar='True/False', nargs='?', const=True, default=True,
+        '-x', '--cleanup', type=str2bool, metavar='True/False', nargs='?', const=False, default=False,
         help=(
-            'Cleanup temporary files of the CM search. '
-            'Set to False when running an analysis multiple times to massively decrease runtime'
+            'Cleanup temporary files of the CM search.'
         )
     )
     # Show help when no arguments are added.
@@ -125,7 +128,7 @@ def main():
     cm_cutoff = args.cutoff
     cleanup = args.cleanup
     msl = args.msl
-    # blast_cutoff = args.blastc
+    blast_cutoff = args.blast_cutoff
 
     ##################################
     # Checking Validity of Arguments #
@@ -269,7 +272,7 @@ def main():
             print('Output file already found at {}.\nSkipping..'.format(taxon_out))
             continue
         else:
-            hits = ncortho(mirnas, models, taxon_dir, msl, cpu, fasta_path, cm_cutoff, ref_blast_db)
+            hits = ncortho(mirnas, models, taxon_dir, msl, cpu, fasta_path, cm_cutoff, ref_blast_db, blast_cutoff)
         # write output
         if hits:
             print('# Writing output at {}\n'.format(taxon_out))

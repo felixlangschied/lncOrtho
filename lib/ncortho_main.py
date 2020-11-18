@@ -8,7 +8,7 @@ from lib.cmsearch_parser import cmsearch_parser
 from lib.mirna_maker import mirna_maker
 
 
-def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
+def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db, blast_cutoff):
     # Create miRNA objects from the list of input miRNAs.
     try:
         mirna_dict = mirna_maker(mirnas, models, output, msl)
@@ -83,23 +83,31 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
         # Perform reverse BLAST test to verify candidates, stored in
         # a dict (accepted_hits).
         accepted_hits = {}
+        candidate_count = 0
         for candidate in candidates:
-            sequence = candidates[candidate]
-            blast_cmd = (
-                'blastn -task blastn -db {0} -num_threads {1} '
-                '-outfmt 6 -query <(echo -e \">{2}\\n{3}\")'.format(ref_blast_db, cpu, candidate, sequence)
-            )
+            if candidate_count <= blast_cutoff:
+                candidate_count += 1
+                sequence = candidates[candidate]
+                blast_cmd = (
+                    'blastn -task blastn -db {0} -num_threads {1} '
+                    '-outfmt 6 -query <(echo -e \">{2}\\n{3}\")'.format(ref_blast_db, cpu, candidate, sequence)
+                )
 
-            p = sp.Popen(blast_cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=True, executable='/bin/bash')
-            blast_output, err = p.communicate()
-            if blast_output:
-                blast_output = blast_output.decode('utf-8')
+                p = sp.Popen(blast_cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=True, executable='/bin/bash')
+                blast_output, err = p.communicate()
+                if blast_output:
+                    blast_output = blast_output.decode('utf-8')
+                else:
+                    continue
+
+                bp = BlastParser(mirna, blast_output, msl)
+                if bp.parse_blast_output():
+                    accepted_hits[candidate] = sequence
             else:
-                continue
-
-            bp = BlastParser(mirna, blast_output, msl)
-            if bp.parse_blast_output():
-                accepted_hits[candidate] = sequence
+                print('Maximum number of {} cmsearch candidates reached '
+                      '(you can increase this with the --blast_cutoff flag)\n'
+                      .format(blast_cutoff))
+                break
 
         # Write output file if at least one candidate got accepted.
         if accepted_hits:
