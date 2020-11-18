@@ -271,17 +271,20 @@ def main():
         else:
             hits = ncortho(mirnas, models, taxon_dir, msl, cpu, fasta_path, cm_cutoff, ref_blast_db)
         # write output
-        print('# Writing output at {}\n'.format(taxon_out))
-        with open(taxon_out, 'w') as of:
-            of.write('# Taxon\tmiRNA\tStart in query genome\tEnd in query genome\tstrand\n')
-            for mirna in hits:
-                seq = list(hits[mirna])[0]
-                info = list(list(hits[mirna])[1])
-                info[0] = info[0].split('_')[0]
-                info = '\t'.join(info[:-1])
-                header = '>{}\t{}'.format(query_species, info)
-                of.write(header + '\n')
-                of.write(seq + '\n')
+        if hits:
+            print('# Writing output at {}\n'.format(taxon_out))
+            with open(taxon_out, 'w') as of:
+                of.write('# Taxon\tmiRNA\tStart in query genome\tEnd in query genome\tstrand\n')
+                for mirna in hits:
+                    seq = list(hits[mirna])[0]
+                    info = list(list(hits[mirna])[1])
+                    info[0] = info[0].split('_')[0]
+                    info = '\t'.join(info[:-1])
+                    header = '>{}\t{}'.format(query_species, info)
+                    of.write(header + '\n')
+                    of.write(seq + '\n')
+        else:
+            print('# No orthologous miRNAs found in {}'.format(query_species))
         # cleanup
         if cleanup:
             print('# Cleaning up..\n')
@@ -289,7 +292,7 @@ def main():
             sp.run(clean_cmd, shell=True)
         del hits
 
-    print('### ncOrtho has finished!\n')
+    print('\n### ncOrtho has finished!\n')
 
 if __name__ == "__main__":
     main()
