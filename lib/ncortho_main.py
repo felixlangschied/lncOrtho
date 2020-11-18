@@ -92,11 +92,10 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db):
 
             p = sp.Popen(blast_cmd, stdout=sp.PIPE, stderr=sp.PIPE, shell=True, executable='/bin/bash')
             blast_output, err = p.communicate()
-            if not err:
+            if blast_output:
                 blast_output = blast_output.decode('utf-8')
             else:
-                print(err)
-                exit()
+                continue
 
             bp = BlastParser(mirna, blast_output, msl)
             if bp.parse_blast_output():
