@@ -17,10 +17,10 @@ class Mirna(object):
         # sense (+) or anti-sense (-) strand
         self.strand = strand
 
-    def loadSeq(self, seq, typ):
-        if typ == 'pre':
+    def loadSeq(self, seq, seq_type):
+        if seq_type == 'pre':
             self.pre = seq
-        elif typ == 'mat':
+        elif seq_type == 'mat':
             self.mat = seq
 
 
@@ -48,8 +48,8 @@ def mirna_maker(mirpath, cmpath, output, msl):
         if not os.path.isdir('{}/{}'.format(output, mirid)):
             try:
                 mkdir = 'mkdir -p {}/{}'.format(output, mirid)
-                sp.call(mkdir, shell=True)
-            except:
+                sp.run(mkdir, shell=True, check=True, stderr=sp.PIPE)
+            except sp.CalledProcessError:
                 print(
                     '# Cannot create output folder for {}.'
                     'Skipping to next miRNA.'
@@ -66,7 +66,6 @@ def mirna_maker(mirpath, cmpath, output, msl):
         seq = mirna[5]
         query = '{0}/{1}/{1}.fa'.format(output, mirid)
         model = '{0}/{1}.cm'.format(cmpath, mirid)
-
 
         # Check if the covariance model even exists, otherwise skip to
         # the next miRNA.
