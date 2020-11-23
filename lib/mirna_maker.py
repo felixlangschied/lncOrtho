@@ -121,5 +121,5 @@ def mirna_maker(mirpath, cmpath, output, msl):
         for rmv_file in [cms_output, cms_log, query]:
             sp.call('rm {}'.format(rmv_file), shell=True)
 
-        print('Reference Bit-Score determined as: {}'.format(top_score))
+        #print('Reference Bit-Score determined as: {}'.format(top_score))
     return mmdict
