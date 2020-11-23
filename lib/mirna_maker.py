@@ -1,6 +1,7 @@
 import os
 import subprocess as sp
 
+
 # Central class of microRNA objects
 class Mirna(object):
     def __init__(self, name, chromosome, start, end, strand):
@@ -16,10 +17,10 @@ class Mirna(object):
         # sense (+) or anti-sense (-) strand
         self.strand = strand
 
-    def loadSeq(self, seq, type):
-        if type == 'pre':
+    def loadSeq(self, seq, seq_type):
+        if seq_type == 'pre':
             self.pre = seq
-        elif type == 'mat':
+        elif seq_type == 'mat':
             self.mat = seq
 
 
@@ -47,8 +48,8 @@ def mirna_maker(mirpath, cmpath, output, msl):
         if not os.path.isdir('{}/{}'.format(output, mirid)):
             try:
                 mkdir = 'mkdir -p {}/{}'.format(output, mirid)
-                sp.call(mkdir, shell=True)
-            except:
+                sp.run(mkdir, shell=True, check=True, stderr=sp.PIPE)
+            except sp.CalledProcessError:
                 print(
                     '# Cannot create output folder for {}.'
                     'Skipping to next miRNA.'
@@ -66,7 +67,6 @@ def mirna_maker(mirpath, cmpath, output, msl):
         query = '{0}/{1}/{1}.fa'.format(output, mirid)
         model = '{0}/{1}.cm'.format(cmpath, mirid)
 
-
         # Check if the covariance model even exists, otherwise skip to
         # the next miRNA.
         if not os.path.isfile(model):
@@ -83,7 +83,7 @@ def mirna_maker(mirpath, cmpath, output, msl):
         cms_log = '{0}/{1}/cmsearch_{1}.log'.format(output, mirid)
         cms_command = (
             'cmsearch -E 0.01 --noali -o {3} --tblout {0} {1} {2}'
-                .format(cms_output, model, query, cms_log)
+            .format(cms_output, model, query, cms_log)
         )
         sp.call(cms_command, shell=True)
         with open(cms_output) as cmsfile:
@@ -115,12 +115,11 @@ def mirna_maker(mirpath, cmpath, output, msl):
         else:
             tmp_mir.loadSeq(None, 'mat')
 
-
         # Create output.
         mmdict[mirna[0]] = tmp_mir
         # Remove temporary files.
         for rmv_file in [cms_output, cms_log, query]:
             sp.call('rm {}'.format(rmv_file), shell=True)
 
-        print('Reference Bit-Score determined as: {}'.format(top_score))
+        #print('Reference Bit-Score determined as: {}'.format(top_score))
     return mmdict
