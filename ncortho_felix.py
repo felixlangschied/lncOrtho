@@ -12,9 +12,11 @@ import sys
 import os
 import glob
 import subprocess as sp
+import time
 
 # internal modules
 from lib.ncortho_main import ncortho
+
 
 # Allow boolean argument parsing
 def str2bool(v):
@@ -87,12 +89,13 @@ def main():
     )
     # test only best cmsearch hits
     parser.add_argument(
-        '-k', '--blast_cutoff', metavar='int', type=int,
-        help='Number of cmsearch hits that are subjected to reverse search', nargs='?', const=10, default=10
+        '-hc', '--heuristic', type=str2bool, metavar='True/False',
+        help=('If True, ncOrtho will only try to verify the first'
+              ' 10 hits of cmsearch and discard the rest')
+        , nargs='?', const=False, default=False
     )
     # cleanup
     parser.add_argument(
-        # '-x', '--cleanup', metavar='True/False', type=bool, default=True,
         '-x', '--cleanup', type=str2bool, metavar='True/False', nargs='?', const=False, default=False,
         help=(
             'Cleanup temporary files of the CM search.'
@@ -128,7 +131,7 @@ def main():
     cm_cutoff = args.cutoff
     cleanup = args.cleanup
     msl = args.msl
-    blast_cutoff = args.blast_cutoff
+    blast_cutoff = args.heuristic
 
     ##################################
     # Checking Validity of Arguments #
@@ -172,7 +175,7 @@ def main():
     db_files = []
     if (
             os.path.isfile(reference)
-            and fname.split('.')[-1] == 'fa'
+            and fname.split('.')[-1] == 'fa' or 'fna'
     ):
         print(
             'Reference given as FASTA file, testing if BlastDB exists in\n'
@@ -210,7 +213,7 @@ def main():
             print(
                 'BLAST database for the given reference does not exist.\n'
                 'Trying to construct a BLAST database from {}.'
-                .format(reference)
+                    .format(reference)
             )
             try:
                 db_command = 'makeblastdb -in {} -out {}/{} -dbtype nucl'.format(reference, out_data, db_name)
@@ -220,7 +223,7 @@ def main():
                 print(
                     'Was not able to construct the BLASTdb for {}\n'
                     'Please check you input.\n'
-                    .format(reference)
+                        .format(reference)
                 )
                 sys.exit()
 
@@ -228,7 +231,7 @@ def main():
     isfasta = []
     if (
             os.path.isfile(query)
-            and query.split('.')[-1] == 'fa'
+            and query.split('.')[-1] == 'fa' or 'fna'
     ):
         print('Query given as single FASTA-file. Starting anaysis\n')
         isfasta.append(query)
@@ -243,7 +246,7 @@ def main():
             for query_path in query_list:
                 if (
                         os.path.isfile(query_path)
-                        and query_path.split('.')[-1] == 'fa'
+                        and query_path.split('.')[-1] == 'fa' or 'fna'
                 ):
                     isfasta.append(query_path)
                 else:
@@ -255,7 +258,7 @@ def main():
         print('Query genomes given as directory.\n'
               'Searching for FASTA files in {}'.format(query))
         dir_files = glob.glob(query + '/*')
-        isfasta = [file for file in dir_files if file.split('.')[-1] == 'fa']
+        isfasta = [file for file in dir_files if file.split('.')[-1] == 'fa' or 'fna']
         print('Found {} valid FASTA files in the query input directory\n'.format(len(isfasta)))
     else:
         print('No valid query found. Exiting..')
@@ -263,16 +266,19 @@ def main():
 
     # run each taxon
     for fasta_path in isfasta:
+        start = time.time()
         query_species = fasta_path.split('/')[-1].split('.')[0]
         taxon_dir = '{}/{}'.format(output, query_species)
         taxon_out = '{}/{}.tsv'.format(output, query_species)
         print('### Starting search for miRNAs in\n'
               '### {}\n'.format(query_species))
         if os.path.isfile(taxon_out):
-            print('Output file already found at {}.\nSkipping..'.format(taxon_out))
+            print('Output file already found at {}\nSkipping..'.format(taxon_out))
             continue
         else:
             hits = ncortho(mirnas, models, taxon_dir, msl, cpu, fasta_path, cm_cutoff, ref_blast_db, blast_cutoff)
+        end = time.time()
+        print('# ncOrtho run for {} took {} s'.format(query_species, round(end - start, 2)))
         # write output
         if hits:
             print('# Writing output at {}\n'.format(taxon_out))

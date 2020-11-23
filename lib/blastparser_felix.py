@@ -38,9 +38,12 @@ class BlastParser(object):
             send = int(tophit[9])
             del blasthits
 
+            print('# Testing if the reverse BLAST-hit of the candidate overlaps with the reference miRNA')
             # Sequences must be on the same contig, otherwise overlap can be
             # ruled out instantaneously
             if not sseqid == self.chromosome:
+                print('# Expected contig {} but found contig {}. '
+                      'No reciprocal hit detected'.format(self.chromosome, sseqid))
                 return False
 
             # Contigs match, so overlap is possible.

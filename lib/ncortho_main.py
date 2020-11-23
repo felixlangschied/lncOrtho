@@ -1,6 +1,7 @@
 import os
 import subprocess as sp
 import sys
+import time
 
 from lib.blastparser_felix import BlastParser
 from lib.genparser_felix import GenomeParser
@@ -84,9 +85,15 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db, bl
         # a dict (accepted_hits).
         accepted_hits = {}
         candidate_count = 0
+        start = time.time()
         for candidate in candidates:
-            if candidate_count <= blast_cutoff:
+            if blast_cutoff:
+                blast_count = 10
+            else:
+                blast_count = len(candidates)
+            if candidate_count < blast_count:
                 candidate_count += 1
+                print(candidate_count)
                 sequence = candidates[candidate]
                 blast_cmd = (
                     'blastn -task blastn -db {0} -num_threads {1} '
@@ -104,10 +111,9 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db, bl
                 if bp.parse_blast_output():
                     accepted_hits[candidate] = sequence
             else:
-                print('Maximum number of {} cmsearch candidates reached '
-                      '(you can increase this with the --blast_cutoff flag)\n'
-                      .format(blast_cutoff))
                 break
+        end = time.time()
+        print('Evaluating {} took {} s'.format(mirna_id, round(end-start, 2)))
 
         # Write output file if at least one candidate got accepted.
         if accepted_hits:
