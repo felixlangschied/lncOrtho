@@ -231,7 +231,7 @@ def main():
     isfasta = []
     if (
             os.path.isfile(query)
-            and query.split('.')[-1] == 'fa' or 'fna'
+            and query.split('.')[-1] in ('fa', 'fna')
     ):
         print('Query given as single FASTA-file. Starting anaysis\n')
         isfasta.append(query)
@@ -246,7 +246,7 @@ def main():
             for query_path in query_list:
                 if (
                         os.path.isfile(query_path)
-                        and query_path.split('.')[-1] == 'fa' or 'fna'
+                        and query_path.split('.')[-1] in ('fa', 'fna')
                 ):
                     isfasta.append(query_path)
                 else:
@@ -258,7 +258,7 @@ def main():
         print('Query genomes given as directory.\n'
               'Searching for FASTA files in {}'.format(query))
         dir_files = glob.glob(query + '/*')
-        isfasta = [file for file in dir_files if file.split('.')[-1] == 'fa' or 'fna']
+        isfasta = [file for file in dir_files if file.split('.')[-1] in ('fa', 'fna')]
         print('Found {} valid FASTA files in the query input directory\n'.format(len(isfasta)))
     else:
         print('No valid query found. Exiting..')
