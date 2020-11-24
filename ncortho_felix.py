@@ -175,7 +175,7 @@ def main():
     db_files = []
     if (
             os.path.isfile(reference)
-            and fname.split('.')[-1] == 'fa' or 'fna'
+            and fname.split('.')[-1] in ('fa', 'fna')
     ):
         print(
             'Reference given as FASTA file, testing if BlastDB exists in\n'
