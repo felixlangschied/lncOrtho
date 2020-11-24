@@ -1,8 +1,8 @@
+#!/home/felixl/anaconda3/bin/python
+# -*- coding: utf-8 -*-
 """
 Download a set of genomes from EnsemblDB or NCBI
 Should support NCBI-TaxIDs and/or Ensembl species names
-Makes use of wget which can be installed with:
-pip install wget
 
 Created on Fri Nov 20 14:24:19 2020
 
@@ -24,18 +24,26 @@ translated_cds.faa.gz
 genomic.gtf.gz
 genomic_gaps.txt.gz
 
+If you want to download from Ensembl use a flavor from this list:
+ensembl_cdna
+ensembl_cds
+ensembl_dna
+ensembl_dna_index
+ensembl_ncrna
+ensembl_pep
+
 """
 
 from ftplib import FTP
 import re
 import wget
 import os
+import subprocess as sp
 
 
 # download genomes as contigs from ensembl FTP based on ensembl ids
 def extract_ensembl(ids, output):
     ids = [eid.lower() for eid in ids]
-    print(ids)
     ftp = FTP('ftp.ensembl.org')
     ftp.login()
     ftp.cwd("/pub/current_fasta")
@@ -52,16 +60,17 @@ def extract_ensembl(ids, output):
                     'ftp://ftp.ensembl.org/pub/current_fasta/{}/dna/{}'
                         .format(id, target)
                 )
-                print(t_location)
                 os.chdir(output)
                 wget.download(t_location)
                 print('# Successfully downloaded file for {}'.format(id))
             except:
                 print('# {} not found'.format(target))
+        else:
+            print('{} not found on the Ensembl FTP-server'.format(id))
 
 
 # download genomes from NCBI based on GCF id
-def extract_GCF(ids, flavor, output):
+def extract_GCF(ids, output, flavor):
     ftp = FTP('ftp.ncbi.nlm.nih.gov')
     ftp.login()
     ftp.cwd("/genomes/all/")
@@ -103,21 +112,45 @@ def extract_GCF(ids, flavor, output):
         os.chdir(output)
         try:
             wget.download(download_url)
-            print('# Successfully downloaded {}'.format(target))
+            print('# Successfully downloaded {} for: {}'.format(flavor, target))
         except:
             print('# {} not found'.format(target_file))
 
 
-# testing
-flav = 'genomic.gtf.gz'
-input = '/home/felixl/genomeDownloader/ncbi_gcf.txt'
-# input = 'ensembl_input.txt'
-output = output = '/home/felixl/genomeDownloader'
-with open(input, 'r') as file:
-    id_list = file.read().strip().split('\n')
+# RUN PROGRAM
+def main(input, flavor, output, unpack):
+    # Check if output folder exists or create it otherwise
+    if not os.path.isdir(output):
+        print('# Creating output folder')
+        cmd = 'mkdir {}'.format(output)
+        try:
+            sp.run(cmd, shell=True, check=True, stderr=sp.PIPE)
+        except sp.CalledProcessError:
+            print('# Could not create output folder at:\n'
+                  '{}\n'
+                  'Exiting..'.format(output))
+    # Read input
+    with open(input, 'r') as file:
+        id_list = file.read().strip().split('\n')
+    # Download
+    if 'ensembl' in flavor:
+        extract_ensembl(id_list, output)
+    else:
+        extract_GCF(id_list, output, flavor)
+    # Unpack the downloaded files
+    if unpack:
+        os.chdir(output)
+        cmd = 'gunzip *.gz'
+        sp.run(cmd, shell=True)
 
-    # TODO: Test what kind of identifier is in the file
-    # ncbi starts with: GCA_ or GCF_
 
-extract_GCF(id_list, flav, output)
-# extract_ensembl(id_list, output)
+# YOUR INPUT HERE
+# flavor = 'protein.faa.gz'
+flavor = 'ensembl_dna'
+# input = 'aci_asseccion_list.txt'
+input = '/home/felixl/spyder/ncOrtho/ensembl_input.txt'
+# output = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/proteomes'
+output = '/home/felixl/spyder/ncOrtho/downloader_output'
+unpack = True
+
+main(input, flavor, output, unpack)
