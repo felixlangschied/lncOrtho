@@ -175,7 +175,7 @@ def main():
     db_files = []
     if (
             os.path.isfile(reference)
-            and fname.split('.')[-1] in ('fa', 'fna')
+            and fname.split('.')[-1] == 'fa' or 'fna'
     ):
         print(
             'Reference given as FASTA file, testing if BlastDB exists in\n'
@@ -265,9 +265,7 @@ def main():
         sys.exit()
 
     # run each taxon
-    no_hits = []
     for fasta_path in isfasta:
-        hits = {}
         start = time.time()
         query_species = fasta_path.split('/')[-1].split('.')[0]
         taxon_dir = '{}/{}'.format(output, query_species)
@@ -296,7 +294,6 @@ def main():
                     of.write(seq + '\n')
         else:
             print('# No orthologous miRNAs found in {}'.format(query_species))
-            no_hits.append(fasta_path)
         # cleanup
         if cleanup:
             print('# Cleaning up..\n')
@@ -305,8 +302,6 @@ def main():
         del hits
 
     print('\n### ncOrtho has finished!\n')
-    if no_hits:
-        print('# No Orthologs found for: \n{}'.format('\n'.join(no_hits)))
 
 if __name__ == "__main__":
     main()
