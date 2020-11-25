@@ -1,18 +1,34 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Created on Tue Nov 24 09:36:03 2020
 
 @author: felixl
 
-Run OMA standalone
+Pre-process files and run OMA standalone.
+Requires a working installation of OMA standalone available here:
+https://omabrowser.org/standalone/
+
+USAGE:
+    outfile_name = run_oma(
+        input1.faa, input2.faa, output, [parameters], [out_name], [cpu]
+        )
+Returns the path to the output
+(path to pairwise orthologs when run in 'pairwise_only' mode)
 
 Will overwrite files during preprocessing
 if the output and input directory are the same
 
+OPTIONAL:
 Parameters for the OMA search can be supplied with
 parameters=/path/to/OMA/parameters.drw
 
 Per default, the script can be run with parameters='pairwise_only' to only
 save the pairwise orthologs and to delete all temporary files (e.g. for ncOrtho)
+
+You can can name the OMA output directory using the parameter name='yourNameHere'
+
+Number of jobs to start with cpu=int (Default=4)
 """
 import os
 import glob
@@ -57,11 +73,13 @@ def process_input(fasta_list, output):
                 print('# Could not copy to {}'.format(output))
 
 
-# run OMA standalone pairwise orthologs only
-# between two proteomes given in FASTA format
+# run OMA standalone between two proteomes given in FASTA format
+# per default only the parwise orthologs will be calculated and
+# the output will be processed to look like the downloadable content from
+# OMA browser
 def run_oma(
-        query1, query2, output, parameters='pairwise_only', out_name='OMA_out'
-):
+        query1, query2, output, parameters='pairwise_only', out_name='OMA_out',
+        cpu=4):
     if (
             os.path.isfile(query1) and os.path.isfile(query2)
             and query1.split('.')[-1] in ('fa', 'faa')
@@ -78,12 +96,14 @@ def run_oma(
         # move modified oma parameters file to tmp_out
         if parameters == 'pairwise_only':
             curr_path = os.path.dirname(os.path.realpath(__file__))
-            cmd = ('cp {}/nco_parameters.drw {}/parameters.drw'
-                   .format(curr_path, tmp_out))
-            sp.run(cmd, shell=True)
+            paramfile = '{}/nco_parameters.drw'.format(curr_path)
+            # cmd = ('cp {}/nco_parameters.drw {}/parameters.drw'
+            #        .format(curr_path, tmp_out))
+            # sp.run(cmd, shell=True)
+
             # run OMA
             os.chdir(tmp_out)
-            # sp.run('oma', shell=True)
+            sp.run('oma -n {} {}'.format(cpu, paramfile), shell=True)
             # sort output and remove temporary files
             outfile = glob.glob('{}/Output/PairwiseOrthologs/*'.format(tmp_out))
             if len(outfile) > 1:
@@ -97,16 +117,28 @@ def run_oma(
             sp.run(cmd, shell=True)
             cmd = 'rm -r {}'.format(tmp_out)
             sp.run(cmd, shell=True)
+            return outfile
 
         elif os.path.isfile(parameters):
-            cmd = 'cp {} {}/parameters.drw'.format(parameters, tmp_out)
-            sp.run(cmd, shell=True)
+            # cmd = 'cp {} {}/parameters.drw'.format(parameters, tmp_out)
+            # sp.run(cmd, shell=True)
+
             # run OMA
             os.chdir(tmp_out)
-            sp.run('oma', shell=True)
+            sp.run('oma -n {} {}'.format(cpu, parameters), shell=True)
+            return tmp_out
         else:
             print('# No valid path to OMA parameters file supplied')
             sys.exit()
         print('# Finished')
     else:
         print('# Invalid input. Please enter two valid FASTA files')
+
+
+# YOUR INPUT HERE
+ref_proteome = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/ref_proteome/GCF_000737145.1_ASM73714v1_protein.faa'
+core_proteome = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/proteomes/GCA_000015425_1_ASM1542v1_protein.fa'
+output = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma'
+
+# RUN PROGRAM
+run_oma(ref_proteome, core_proteome, output)
