@@ -8,10 +8,10 @@ import os
 import glob
 import re
 
-from utils.oma_lib.ensembl2oma import findOMAprefix_fromEnsemblGTF
-from utils.oma_lib.ensembl2oma import map_ensembl2OMA
-from utils.oma_lib.ensembl2oma import find_core_ortholog
-from utils.oma_lib.ensembl2oma import map_OMA2ensembl
+from utils.OMA.useless.ensembl2oma import findOMAprefix_fromEnsemblGTF
+from utils.OMA.useless.ensembl2oma import map_ensembl2OMA
+from utils.OMA.useless.ensembl2oma import find_core_ortholog
+from utils.OMA.useless.ensembl2oma import map_OMA2ensembl
 
 
 def oma_parser(r_gtf, c_gtf, ens2oma_map, oma_groups, output):
