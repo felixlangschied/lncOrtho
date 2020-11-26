@@ -56,19 +56,16 @@ def process_input(fasta_list, output):
         path_stem = '/'.join(path.split('/')[0:-1])
         if path_stem == output and new_name:
             os.rename(path, '{}/{}'.format(path_stem, new_name))
-            print('# Done')
         elif path_stem != output and not new_name:
             cmd = 'cp {} {}/{}'.format(path, output, fname)
             try:
                 sp.run(cmd, shell=True, check=True, stderr=sp.PIPE)
-                print('# Done')
             except sp.CalledProcessError:
                 print('# Could not copy to {}'.format(output))
         elif path_stem != output and new_name:
             cmd = 'cp {} {}/{}'.format(path, output, new_name)
             try:
                 sp.run(cmd, shell=True, check=True, stderr=sp.PIPE)
-                print('# Done')
             except sp.CalledProcessError:
                 print('# Could not copy to {}'.format(output))
 
@@ -99,7 +96,14 @@ def run_oma(
             paramfile = '{}/nco_parameters.drw'.format(curr_path)
             # run OMA
             os.chdir(tmp_out)
-            sp.run('oma -n {} {}'.format(cpu, paramfile), shell=True)
+            try:
+                print('# Starting OMA standalone run')
+                #sp.run('/home/felixl/applications/OMA.2.3.1/bin/oma {} -n {}'.format(paramfile, cpu), shell=True, check=True)
+                sp.run('oma {} -n {}'.format(paramfile, cpu), shell=True, check=True)
+            except sp.CalledProcessError:
+                print('# OMA is returning an error:')
+                sys.exit()
+
             # sort output and remove temporary files
             outfile = glob.glob('{}/Output/PairwiseOrthologs/*'.format(tmp_out))
             if len(outfile) > 1:
@@ -118,7 +122,12 @@ def run_oma(
         elif os.path.isfile(parameters):
             # run OMA
             os.chdir(tmp_out)
-            sp.run('oma -n {} {}'.format(cpu, parameters), shell=True)
+            try:
+                print('# Starting OMA standalone run')
+                sp.run('oma {} -n {}'.format(parameters, cpu), shell=True, check=True)
+            except sp.CalledProcessError:
+                print('# OMA is returning an error:')
+                sys.exit()
             return tmp_out
         else:
             print('# No valid path to OMA parameters file supplied')

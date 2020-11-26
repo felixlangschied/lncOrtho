@@ -29,27 +29,51 @@ def extract_ensembl(ids, output, raw_flavor):
 
     for id in ids:
         if id in root_dirs:
-            ftp.cwd('/pub/current_fasta/{}/{}'.format(id, flavor))
-            files = ftp.nlst()
-
-            if flavor == 'dna':
-                r = re.compile(".*dna.toplevel.fa.gz")
-                target = list(filter(r.match, files))[0]
-            elif flavor == 'pep':
-                r = re.compile('.*pep.all.fa.gz')
-                target = list(filter(r.match, files))[0]
-            try:
-                t_location = (
-                    'ftp://ftp.ensembl.org/pub/current_fasta/{}/{}/{}'
-                        .format(id, flavor, target)
-                )
-                os.chdir(output)
-                wget.download(t_location)
-                print('# Successfully downloaded file for {}'.format(id))
-            except:
-                print('# {} not found'.format(target))
+            if flavor in ('dna', 'pep'):
+                direct = 'current_fasta'
+                if flavor == 'dna':
+                    ftp.cwd('/pub/{}/{}/{}'.format(direct, id, flavor))
+                    files = ftp.nlst()
+                    r = re.compile(".*dna.toplevel.fa.gz")
+                    target = list(filter(r.match, files))[0]
+                elif flavor == 'pep':
+                    ftp.cwd('/pub/{}/{}/{}'.format(direct, id, flavor))
+                    files = ftp.nlst()
+                    r = re.compile('.*pep.all.fa.gz')
+                    target = list(filter(r.match, files))[0]
+                try:
+                    t_location = (
+                        'ftp://ftp.ensembl.org/pub/{0}/{1}/{2}/{3}'
+                            .format(direct, id, flavor, target)
+                    )
+                    os.chdir(output)
+                    print('\n# Starting download for {}'.format(id))
+                    wget.download(t_location)
+                except:
+                    print('\n# {} not found'.format(target))
+            elif flavor == 'gtf':
+                direct = 'current_gtf'
+                print('/pub/{}/{}'.format(direct, id))
+                ftp.cwd('/pub/{}/{}'.format(direct, id))
+                files = ftp.nlst()
+                for file in files:
+                    if (
+                            '.gz' in file
+                            and not ('abinitio.gtf.gz' and 'chr.gtf.gz') in file
+                    ):
+                        target = file
+                try:
+                    t_location = (
+                        'ftp://ftp.ensembl.org/pub/{0}/{1}/{2}'
+                            .format(direct, id, target)
+                    )
+                    os.chdir(output)
+                    print('\n# Starting download for {}'.format(id))
+                    wget.download(t_location)
+                except:
+                    print('\n# {} not found'.format(target))
         else:
-            print('{} not found on the Ensembl FTP-server'.format(id))
+            print('\n# {} not found on the Ensembl FTP-server'.format(id))
 
 
 # download genomes from NCBI based on GCF/GCA id
@@ -95,8 +119,9 @@ def extract_GCF(ids, output, flavor):
         )
         os.chdir(output)
         try:
+            print('\n# Starting download of {} for: {}'.format(flavor, target))
             wget.download(download_url)
-            print('# Successfully downloaded {} for: {}'.format(flavor, target))
+
         except:
             print('# {} not found'.format(target_file))
 
@@ -149,6 +174,7 @@ def main():
         # If you want to download from Ensembl use a flavor from this list:
         ensembl_dna
         ensembl_pep
+        ensembl_gtf
 
         # Currently not supported ensembl formats:
         ensembl_cdna
@@ -169,7 +195,7 @@ def main():
     else:
         args = parser.parse_args()
     # parse input
-    output = args.output
+    output = os.path.abspath(args.output)
     input = args.input
     flavor = args.flavor
     unpack = args.unpack
@@ -194,7 +220,7 @@ def main():
                     'feature_count.txt.gz', 'translated_cds.faa.gz',
                     'genomic.gtf.gz', 'genomic_gaps.txt.gz']
 
-    ensembl_supported = ['ensembl_dna', 'ensembl_pep']
+    ensembl_supported = ['ensembl_dna', 'ensembl_pep', 'ensembl_gtf']
     ensembl_unsupported = ['ensembl_cdna', 'ensembl_cds',
                            'ensembl_dna_index', 'ensembl_ncrna']
 
@@ -217,7 +243,7 @@ def main():
         extract_GCF(id_list, output, flavor)
     # Unpack the downloaded files
     if unpack:
-        print('# Starting to unpack downloaded files..')
+        print('\n# Starting to unpack downloaded files..')
         os.chdir(output)
         cmd = 'gunzip *.gz'
         sp.run(cmd, shell=True)
