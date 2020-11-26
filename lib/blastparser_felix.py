@@ -43,7 +43,7 @@ class BlastParser(object):
             # ruled out instantaneously
             if not sseqid == self.chromosome:
                 print('# Expected contig {} but found contig {}. '
-                      'No reciprocal hit detected'.format(self.chromosome, sseqid))
+                      'No reciprocal hit detected\n'.format(self.chromosome, sseqid))
                 return False
 
             # Contigs match, so overlap is possible.
