@@ -14,10 +14,10 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db, bl
     try:
         mirna_dict = mirna_maker(mirnas, models, output, msl)
     except TypeError:
-        print('Could not parse the provided miRNA file.'
+        print('# Could not parse the provided miRNA file.'
               'Please check the format of your file at:\n'
               '{}\n'
-              'Exiting..'.format(mirnas))
+              '# Exiting..'.format(mirnas))
         sys.exit()
 
     # Create Outdict:
@@ -32,9 +32,10 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db, bl
             try:
                 sp.run('mkdir {}'.format(outdir), shell=True, check=True, stderr=sp.PIPE)
             except sp.CalledProcessError:
-                print('Could not create output folder at\n'
+                print('# Could not create output folder at\n'
                       '{}'.format(outdir))
-        print('\n# Running covariance model search for {}.'.format(mirna_id))
+        print('\n# Running covariance model search for {}\n#'.format(mirna_id))
+        sys.stdout.flush()
         cms_output = '{0}/cmsearch_{1}.out'.format(outdir, mirna_id)
         # Calculate the bit score cutoff.
         cut_off = mirna.bit * cm_cutoff

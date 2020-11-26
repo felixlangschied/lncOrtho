@@ -264,6 +264,7 @@ def main():
         print('No valid query found. Exiting..')
         sys.exit()
 
+
     # run each taxon
     for fasta_path in isfasta:
         query_species = fasta_path.split('/')[-1].split('.')[0]
@@ -271,8 +272,9 @@ def main():
         taxon_out = '{}/{}.tsv'.format(output, query_species)
         print('### Starting search for miRNAs in\n'
               '### {}\n'.format(query_species))
+        sys.stdout.flush()
         if os.path.isfile(taxon_out):
-            print('Output file already found at {}\nSkipping..'.format(taxon_out))
+            print('# Output file already found at {}. \nSkipping..\n'.format(taxon_out))
             continue
         else:
             start = time.time()
@@ -300,6 +302,7 @@ def main():
             clean_cmd = 'rm -r {}'.format(taxon_dir)
             sp.run(clean_cmd, shell=True)
         del hits
+
 
     print('\n### ncOrtho has finished!\n')
 
