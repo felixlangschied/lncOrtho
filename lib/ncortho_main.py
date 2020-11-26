@@ -51,7 +51,8 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db, bl
                 '--tblout {1} {2}/{3}.cm {4}'
                 .format(cpu, cms_output, models, mirna_id, query, cut_off)
             )
-            sp.run(cms_command, shell=True, stdout=sp.PIPE)
+            search_output = sp.run(cms_command, shell=True, capture_output=True)
+            print(search_output.stdout.decode('utf-8'))
             cm_results = cmsearch_parser(cms_output, cut_off, len_cut, mirna_id)
 
             with open(cmparse_results, 'w') as file:
