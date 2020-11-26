@@ -51,12 +51,13 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db, bl
                 '--tblout {1} {2}/{3}.cm {4}'
                 .format(cpu, cms_output, models, mirna_id, query, cut_off)
             )
-            sp.call(cms_command, shell=True)
+            sp.run(cms_command, shell=True, stdout=sp.PIPE)
             cm_results = cmsearch_parser(cms_output, cut_off, len_cut, mirna_id)
 
             with open(cmparse_results, 'w') as file:
                 file.write(str(cm_results))
         else:
+            print('# cmsearch results found at {}. Using these instead..\n'.format(cmparse_results))
             with open(cmparse_results, 'r') as file:
                 cm_results = eval(file.read())
 
@@ -93,7 +94,6 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db, bl
                 blast_count = len(candidates)
             if candidate_count < blast_count:
                 candidate_count += 1
-                print(candidate_count)
                 sequence = candidates[candidate]
                 blast_cmd = (
                     'blastn -task blastn -db {0} -num_threads {1} '
@@ -113,7 +113,7 @@ def ncortho(mirnas, models, output, msl, cpu, query, cm_cutoff, ref_blast_db, bl
             else:
                 break
         end = time.time()
-        print('Evaluating {} took {} s'.format(mirna_id, round(end-start, 2)))
+        print('# Evaluating {} took {} s'.format(mirna_id, round(end-start, 2)))
 
         # Write output file if at least one candidate got accepted.
         if accepted_hits:

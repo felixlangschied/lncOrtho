@@ -62,7 +62,7 @@ def mirna_maker(mirpath, cmpath, output, msl):
 
         # Obtain the reference bit score for each miRNA by applying it
         # to its own covariance model.
-        print('# Calculating reference bit score for {}.'.format(mirid))
+        print('# Calculating reference bit score for {}'.format(mirid))
         seq = mirna[5]
         query = '{0}/{1}/{1}.fa'.format(output, mirid)
         model = '{0}/{1}.cm'.format(cmpath, mirid)

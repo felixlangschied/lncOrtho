@@ -97,10 +97,6 @@ def run_oma(
         if parameters == 'pairwise_only':
             curr_path = os.path.dirname(os.path.realpath(__file__))
             paramfile = '{}/nco_parameters.drw'.format(curr_path)
-            # cmd = ('cp {}/nco_parameters.drw {}/parameters.drw'
-            #        .format(curr_path, tmp_out))
-            # sp.run(cmd, shell=True)
-
             # run OMA
             os.chdir(tmp_out)
             sp.run('oma -n {} {}'.format(cpu, paramfile), shell=True)
@@ -120,9 +116,6 @@ def run_oma(
             return outfile
 
         elif os.path.isfile(parameters):
-            # cmd = 'cp {} {}/parameters.drw'.format(parameters, tmp_out)
-            # sp.run(cmd, shell=True)
-
             # run OMA
             os.chdir(tmp_out)
             sp.run('oma -n {} {}'.format(cpu, parameters), shell=True)
@@ -130,15 +123,16 @@ def run_oma(
         else:
             print('# No valid path to OMA parameters file supplied')
             sys.exit()
-        print('# Finished')
     else:
         print('# Invalid input. Please enter two valid FASTA files')
+    # print('# Finished')
 
 
-# YOUR INPUT HERE
-ref_proteome = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/ref_proteome/GCF_000737145.1_ASM73714v1_protein.faa'
-core_proteome = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/proteomes/GCA_000015425_1_ASM1542v1_protein.fa'
-output = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma'
 
-# RUN PROGRAM
-run_oma(ref_proteome, core_proteome, output)
+# # YOUR INPUT HERE
+# ref_proteome = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/ref_proteome/GCF_000737145.1_ASM73714v1_protein.faa'
+# core_proteome = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/proteomes/GCA_000015425_1_ASM1542v1_protein.fa'
+# output = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma'
+#
+# # RUN PROGRAM
+# run_oma(ref_proteome, core_proteome, output)

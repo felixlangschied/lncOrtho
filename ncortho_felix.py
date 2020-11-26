@@ -223,7 +223,7 @@ def main():
                 print(
                     'Was not able to construct the BLASTdb for {}\n'
                     'Please check you input.\n'
-                        .format(reference)
+                    .format(reference)
                 )
                 sys.exit()
 
@@ -266,7 +266,6 @@ def main():
 
     # run each taxon
     for fasta_path in isfasta:
-        start = time.time()
         query_species = fasta_path.split('/')[-1].split('.')[0]
         taxon_dir = '{}/{}'.format(output, query_species)
         taxon_out = '{}/{}.tsv'.format(output, query_species)
@@ -276,9 +275,10 @@ def main():
             print('Output file already found at {}\nSkipping..'.format(taxon_out))
             continue
         else:
+            start = time.time()
             hits = ncortho(mirnas, models, taxon_dir, msl, cpu, fasta_path, cm_cutoff, ref_blast_db, blast_cutoff)
-        end = time.time()
-        print('# ncOrtho run for {} took {} s'.format(query_species, round(end - start, 2)))
+            end = time.time()
+            print('# ncOrtho run for {} took {} s'.format(query_species, round(end - start, 2)))
         # write output
         if hits:
             print('# Writing output at {}\n'.format(taxon_out))
