@@ -1,18 +1,131 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Nov 25 13:44:22 2020
+Calculate pairwise orthologs with OMA standalone for the core set construction of ncOrtho
 
+Requires a working installation of OMA standalone available here:
+https://omabrowser.org/standalone/
+
+USAGE:
+
+
+
+Created on Wed Nov 25 13:44:22 2020
 @author: felixl
 """
 import os
 import glob
 import sys
 import subprocess as sp
+import argparse
+import multiprocessing as mp
 from run_oma import run_oma
 
 
-def main(reference, core, output, jobs=4, cleanup=True):
+def oma4core(reference, isfasta, output, jobs=4, cleanup=True):
+    for core in isfasta:
+        print('# Starting pre-processing for {}'.format(core))
+        sys.stdout.flush()
+        result_file = run_oma(reference, core, output, cpu=jobs)
+        #result_file = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/GCF_000737145_1_ASM73714v1_protein-GCA_000015425_1_ASM1542v1_protein.txt'
+
+        #process_out = result_file.split('.')[0] + '_mod.txt'
+        process_out = '{}/Refvs{}.txt'.format(output, core.split('/')[-1].split('.')[0])
+        with open(result_file, 'r') as file, open(process_out, 'w') as outfile:
+            example = True
+            for line in file:
+                if not line.startswith('#'):
+                    line = line.strip().split('\t')
+                    out_list = line[2:]
+                    if ' ' in out_list[0] or ' ' in out_list[1]:
+                        if example:
+                            print('# Space detected in ProteinID. Trying to remove description')
+                            print('# Printing Example:')
+                            print('# Your input IDs look like this:')
+                            print('\t'.join(out_list[0:2]))
+                            # Process ids
+                            out_list = [entry.split(' ')[0] for entry in out_list]
+                            print('# Now they look like this:')
+                            print('\t'.join(out_list[0:2]))
+                            print('# Please double check this processing!')
+                            example = False
+                        else:
+                            out_list = [entry.split(' ')[0] for entry in out_list]
+                    outstring = '\t'.join(out_list)
+                    outfile.write('{}\n'.format(outstring))
+        if cleanup:
+            cmd = 'rm {}'.format(result_file)
+            sp.run(cmd, shell=True)
+        print('# OMA run and post-processing done. Output saved at:\n'
+              '{}'.format(process_out))
+
+
+# Allow boolean argument parsing
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+def main():
+    # noinspection PyTypeChecker
+    parser = argparse.ArgumentParser(
+        prog='python oma4core.py',
+        description='Calculate pairwise orthologs with OMA standalone for the core set construction of ncOrtho',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument(
+        '-r', '--reference', metavar='<.fa>', type=str,
+        help='Path to the proteome of the reference species in FASTA format',
+    )
+    parser.add_argument(
+        '-c', '--core', metavar='<PATH>', type=str,
+        help="Path to the proteome of a core species in FASTA format, "
+             "a directory with the core species' proteomes, "
+             "or a .txt file containing paths to the core species proteomes in each line"
+    )
+    parser.add_argument(
+        '-o', '--output', metavar='<path>', type=str,
+        help='Output path'
+    )
+    parser.add_argument(
+        '-x', '--cleanup', type=str2bool, metavar='True/False', nargs='?', const=True, default=True,
+        help="Delete un-post-processed output file of OMA pairwise (Default=True)"
+    )
+    parser.add_argument(
+        '-t', '--threads', type=int, metavar='<int>', nargs='?', const=4, default=4,
+        help="Delete un-post-processed output file of OMA pairwise (Default=True)"
+    )
+
+    # Parse arguments
+    # Show help when no arguments are added.
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+    else:
+        args = parser.parse_args()
+
+    # Check if computer provides the desired number of cores.
+    available_cpu = mp.cpu_count()
+    if args.threads > available_cpu:
+        print(
+            '# Error: The provided number of CPU cores is higher than the '
+            'number available on this system. Exiting...'
+        )
+        sys.exit(1)
+    else:
+        jobs = args.threads
+
+    reference = args.reference
+    core = args.core
+    output = args.output
+    cleanup = args.cleanup
+
+    # Argument checks
     # check type of query: single FASTA-file, Folder with FASTA-files or txt document with paths to FASTA files
     isfasta = []
     if (
@@ -65,50 +178,15 @@ def main(reference, core, output, jobs=4, cleanup=True):
                   '{}\n')
 
     # BODY
-    for core in isfasta:
-        print('# Starting pre-processing for {}'.format(core))
-        sys.stdout.flush()
-        result_file = run_oma(reference, core, output, cpu=jobs)
-        #result_file = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/GCF_000737145_1_ASM73714v1_protein-GCA_000015425_1_ASM1542v1_protein.txt'
+    oma4core(reference, isfasta, output, jobs=4, cleanup=True)
+
+if __name__ == "__main__":
+    main()
 
 
-        process_out = result_file.split('.')[0] + '_mod.txt'
-        with open(result_file, 'r') as file, open(process_out, 'w') as outfile:
-            example = True
-            for line in file:
-                if not line.startswith('#'):
-                    line = line.strip().split('\t')
-                    out_list = line[2:]
-                    if ' ' in out_list[0] or ' ' in out_list[1]:
-                        if example:
-                            print('# Space detected in ProteinID. Trying to remove description')
-                            print('# Printing Example:')
-                            print('# Your input IDs look like this:')
-                            print('\t'.join(out_list[0:2]))
-                            # Process ids
-                            out_list = [entry.split(' ')[0] for entry in out_list]
-                            print('# Now they look like this:')
-                            print('\t'.join(out_list[0:2]))
-                            print('# Please double check this processing!')
-                            example = False
-                        else:
-                            out_list = [entry.split(' ')[0] for entry in out_list]
-                    outstring = '\t'.join(out_list)
-                    outfile.write('{}\n'.format(outstring))
-        if cleanup:
-            cmd = 'mv {} {}'.format(process_out, result_file)
-            sp.run(cmd, shell=True)
-            print('# OMA run and post-processing done. Output saved at:\n'
-                  '{}'.format(result_file))
-        else:
-            print('# OMA run and post-processing done. Output saved at:\n'
-                  '{}'.format(process_out))
-
-
-
-# # YOUR INPUT HERE
-ref_proteome = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/ref_proteome/GCF_000737145.1_ASM73714v1_protein.faa'
-core_proteome = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/proteomes/GCA_000015425_1_ASM1542v1_protein.fa'
-output = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/pairwise'
-
-main(ref_proteome, core_proteome, output)
+# # # YOUR INPUT HERE
+# ref_proteome = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/ref_proteome/GCF_000737145.1_ASM73714v1_protein.faa'
+# core_proteome = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/proteomes/GCA_000015425_1_ASM1542v1_protein.fa'
+# output = '/share/project/felixl/ncOrtho/data/aci_ref_core/oma/pairwise'
+#
+# main(ref_proteome, core_proteome, output)
