@@ -94,12 +94,13 @@ def run_oma(
         if parameters == 'pairwise_only':
             curr_path = os.path.dirname(os.path.realpath(__file__))
             paramfile = '{}/nco_parameters.drw'.format(curr_path)
+            sp.run('cp {} {}/parameters.drw'.format(paramfile, tmp_out), shell=True)
             # run OMA
             os.chdir(tmp_out)
             try:
                 print('# Starting OMA standalone run')
                 #sp.run('/home/felixl/applications/OMA.2.3.1/bin/oma {} -n {}'.format(paramfile, cpu), shell=True, check=True)
-                sp.run('oma {} -n {}'.format(paramfile, cpu), shell=True, check=True)
+                sp.run('oma -n {}'.format(cpu), shell=True, check=True)
             except sp.CalledProcessError:
                 print('# OMA is returning an error:')
                 sys.exit()
@@ -121,10 +122,11 @@ def run_oma(
 
         elif os.path.isfile(parameters):
             # run OMA
+            sp.run('cp {} {}/parameters.drw'.format(parameters, tmp_out), shell=True)
             os.chdir(tmp_out)
             try:
                 print('# Starting OMA standalone run')
-                sp.run('oma {} -n {}'.format(parameters, cpu), shell=True, check=True)
+                sp.run('oma -n {}'.format(cpu), shell=True, check=True)
             except sp.CalledProcessError:
                 print('# OMA is returning an error:')
                 sys.exit()

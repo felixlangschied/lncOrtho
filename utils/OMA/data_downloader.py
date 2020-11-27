@@ -19,15 +19,17 @@ import textwrap
 
 
 # download genomes as contigs from ensembl FTP based on ensembl ids
-def extract_ensembl(ids, output, raw_flavor):
+def extract_ensembl(ids, output, raw_flavor, naming, dir_mode):
     ids = [eid.lower() for eid in ids]
     ftp = FTP('ftp.ensembl.org')
     ftp.login()
     ftp.cwd("/pub/current_fasta")
     root_dirs = ftp.nlst()
     flavor = raw_flavor.replace('ensembl_', '')
+    count = -1
 
     for id in ids:
+        count += 1
         if id in root_dirs:
             if flavor in ('dna', 'pep'):
                 direct = 'current_fasta'
@@ -49,6 +51,22 @@ def extract_ensembl(ids, output, raw_flavor):
                     os.chdir(output)
                     print('\n# Starting download for {}'.format(id))
                     wget.download(t_location)
+                    # rename files if option selected
+                    if naming:
+                        name = naming[count]
+                        if dir_mode:
+                            if not os.path.isdir('{}/{}'.format(output, name)):
+                                cmd = 'mkdir {}'.format(name)
+                                sp.run(cmd, shell=True)
+                            file_name = '{}.fa.gz'.format(name)
+                            cmd = 'mv {} {}/{}'.format(target, name, file_name)
+                            sp.run(cmd, shell=True)
+                        else:
+                            file_name = '{}.fa.gz'.format(name)
+                            cmd = 'mv {} {}'.format(target, file_name)
+                            sp.run(cmd, shell=True)
+                    elif not naming and dir_mode:
+                        print('\n # No column with names detected in the input file. Unable to run in dir_mode')
                 except:
                     print('\n# {} not found'.format(target))
             elif flavor == 'gtf':
@@ -70,6 +88,22 @@ def extract_ensembl(ids, output, raw_flavor):
                     os.chdir(output)
                     print('\n# Starting download for {}'.format(id))
                     wget.download(t_location)
+                    # rename files if option selected
+                    if naming:
+                        name = naming[count]
+                        if dir_mode:
+                            if not os.path.isdir('{}/{}'.format(output, name)):
+                                cmd = 'mkdir {}'.format(name)
+                                sp.run(cmd, shell=True)
+                            file_name = '{}.gtf.gz'.format(name)
+                            cmd = 'mv {} {}/{}'.format(target, name, file_name)
+                            sp.run(cmd, shell=True)
+                        else:
+                            file_name = '{}.gtf.gz'.format(name)
+                            cmd = 'mv {} {}'.format(target, file_name)
+                            sp.run(cmd, shell=True)
+                    elif not naming and dir_mode:
+                        print('\n# No column with names detected in the input file. Unable to run in dir_mode')
                 except:
                     print('\n# {} not found'.format(target))
         else:
@@ -77,12 +111,14 @@ def extract_ensembl(ids, output, raw_flavor):
 
 
 # download genomes from NCBI based on GCF/GCA id
-def extract_GCF(ids, output, flavor):
+def extract_GCF(ids, output, flavor, naming, dir_mode):
     ftp = FTP('ftp.ncbi.nlm.nih.gov')
     ftp.login()
     ftp.cwd("/genomes/all/")
+    count = -1
 
     for id in ids:
+        count += 1
         ftp.cwd('/genomes/all/')
         id = id.split('.')[0]
         typ = id.split('_')[0]
@@ -121,9 +157,25 @@ def extract_GCF(ids, output, flavor):
         try:
             print('\n# Starting download of {} for: {}'.format(flavor, target))
             wget.download(download_url)
+            if naming:
+                name = naming[count]
+                print(name)
+                if dir_mode:
+                    if not os.path.isdir('{}/{}'.format(output, name)):
+                        cmd = 'mkdir {}'.format(name)
+                        sp.run(cmd, shell=True)
+                    file_name = '{}_{}'.format(name, flavor)
+                    cmd = 'mv {}_{} {}/{}'.format(target, flavor, name, file_name)
+                    sp.run(cmd, shell=True)
+                else:
+                    file_name = '{}_{}'.format(name, flavor)
+                    cmd = 'mv {}_{} {}'.format(target, flavor, file_name)
+                    sp.run(cmd, shell=True)
+            elif not naming and dir_mode:
+                print('\n# No column with names detected in the input file. Unable to run in dir_mode')
 
         except:
-            print('# {} not found'.format(target_file))
+            print('\n# {} not found'.format(target_file))
 
 
 # Allow boolean argument parsing
@@ -149,7 +201,8 @@ def main():
     )
     parser.add_argument(
         '-i', '--input', metavar='<path>', type=str,
-        help='Path to list of NCBI-Accessions or ensembl genus/species names',
+        help='Path to list of NCBI-Accessions or ensembl genus/species names. '
+             'Can have an optional tab delimited column that speciefies a name that the downloaded file should receive ',
     )
     parser.add_argument(
         '-o', '--output', metavar='<path>', type=str,
@@ -192,6 +245,11 @@ def main():
         '-u', '--unpack', type=str2bool, metavar='True/False', nargs='?', const=True, default=True,
         help="Set to False if you don't want to unpack the downloaded files straight away (Default=True)"
     )
+    parser.add_argument(
+        '-d', '--dir_mode', type=str2bool, metavar='True/False', nargs='?', const=False, default=False,
+        help="Downloads each file into a new directory. "
+             "Only applicable with name column in the input file (Default=False)"
+    )
     # Show help when no arguments are added.
     if len(sys.argv) == 1:
         parser.print_help()
@@ -203,6 +261,7 @@ def main():
     input = args.input
     flavor = args.flavor
     unpack = args.unpack
+    dir_mode = args.dir_mode
 
     # MAIN BODY
     # Check if output folder exists or create it otherwise
@@ -237,20 +296,47 @@ def main():
 
     # Read input
     with open(input, 'r') as file:
-        id_list = file.read().strip().split('\n')
+        id_list = []
+        name_list = []
+        naming = []
+        data = file.read().strip().split('\n')
+        for line in data:
+            id_list.append(line.split('\t')[0])
+            if len(line.split('\t')) == 2:
+                name_list.append(line.split('\t')[1])
+        if name_list and len(name_list) == len(id_list):
+            naming = name_list
         # convert spaces to underscores
         id_list = [id.replace(' ', '_') for id in id_list]
     # Download
     if 'ensembl_' in flavor:
-        extract_ensembl(id_list, output, flavor)
+        extract_ensembl(id_list, output, flavor, naming, dir_mode)
     else:
-        extract_GCF(id_list, output, flavor)
+        extract_GCF(id_list, output, flavor, naming, dir_mode)
     # Unpack the downloaded files
-    if unpack:
-        print('\n# Starting to unpack downloaded files..')
+    if unpack and not dir_mode:
+        print('\n# Trying to unpack downloaded files..')
         os.chdir(output)
         cmd = 'gunzip *.gz'
         sp.run(cmd, shell=True)
+    elif unpack and dir_mode:
+        print('\n# Trying to unpack downloaded files..')
+        if not naming:
+            print('# Unable to run in dir_mode. Trying to unpack at the output directory ')
+            os.chdir(output)
+            cmd = 'gunzip *.gz'
+            sp.run(cmd, shell=True, check=True, stderr=sp.PIPE)
+        else:
+            for name in naming:
+                path = '{}/{}'.format(output, name)
+                if os.path.isdir(path):
+                    os.chdir(path)
+                    cmd = 'gunzip *.gz'
+                    sp.run(cmd, shell=True)
+                else:
+                    print('# No output found for {}. Skipping..'.format(name))
+                    continue
+
     print('# Finished')
 
 
