@@ -9,6 +9,7 @@ https://omabrowser.org/standalone/
 USAGE:
 
 
+Compatibility tested for OMA 2.4.1
 
 Created on Wed Nov 25 13:44:22 2020
 @author: felixl
@@ -58,6 +59,7 @@ def oma4core(reference, isfasta, output, jobs=4, cleanup=True):
             sp.run(cmd, shell=True)
         print('# OMA run and post-processing done. Output saved at:\n'
               '{}'.format(process_out))
+        del result_file, process_out, out_list
 
 
 # Allow boolean argument parsing
@@ -97,8 +99,8 @@ def main():
         help="Delete un-post-processed output file of OMA pairwise (Default=True)"
     )
     parser.add_argument(
-        '-t', '--threads', type=int, metavar='<int>', nargs='?', const=4, default=4,
-        help="Delete un-post-processed output file of OMA pairwise (Default=True)"
+        '-n', '--number', type=int, metavar='<int>', nargs='?', const=4, default=4,
+        help="number of parallel jobs to be started on this computer"
     )
 
     # Parse arguments
@@ -111,14 +113,14 @@ def main():
 
     # Check if computer provides the desired number of cores.
     available_cpu = mp.cpu_count()
-    if args.threads > available_cpu:
+    if args.number > available_cpu:
         print(
             '# Error: The provided number of CPU cores is higher than the '
             'number available on this system. Exiting...'
         )
         sys.exit(1)
     else:
-        jobs = args.threads
+        jobs = args.number
 
     reference = args.reference
     core = args.core
@@ -182,6 +184,31 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# TODO: ONLY WORKS FOR THE FIRST CORE PROTEOME -> LOOP IS BROKEN. ERROR:
+
+# /home/felixl/applications/OMA/bin/oma: line 196: kill: (344383) - No such process
+# # Space detected in ProteinID. Trying to remove description
+# # Printing Example:
+# # Your input IDs look like this:
+# WP_000002861.1 MULTISPECIES: DUF1446 domain-containing protein [Acinetobacter]	WP_000002852.1 DUF1446 domain-containing protein [Acinetobacter baumannii]
+# # Now they look like this:
+# WP_000002861.1	WP_000002852.1
+# # Please double check this processing!
+# sh: 0: getcwd() failed: No such file or directory
+# # OMA run and post-processing done. Output saved at:
+# /share/project/felixl/ncOrtho/data/aci_ref_core/oma/RefvsGCF_000419425_1_ASM41942v1_protein.txt
+# # Starting pre-processing for /share/project/felixl/ncOrtho/data/aci_ref_core/oma/proteomes/GCF_000737145_1_ASM73714v1_protein.fa
+# # Invalid input. Please enter two valid FASTA files
+# Traceback (most recent call last):
+#   File "/home/felixl/PycharmProjects/ncOrtho/utils/OMA/oma4core.py", line 186, in <module>
+#     main()
+#   File "/home/felixl/PycharmProjects/ncOrtho/utils/OMA/oma4core.py", line 183, in main
+#     oma4core(reference, isfasta, output, jobs=4, cleanup=True)
+#   File "/home/felixl/PycharmProjects/ncOrtho/utils/OMA/oma4core.py", line 35, in oma4core
+#     with open(result_file, 'r') as file, open(process_out, 'w') as outfile:
+# TypeError: expected str, bytes or os.PathLike object, not NoneType
+
 
 
 # # # YOUR INPUT HERE

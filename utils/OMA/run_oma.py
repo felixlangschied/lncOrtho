@@ -29,6 +29,9 @@ save the pairwise orthologs and to delete all temporary files (e.g. for ncOrtho)
 You can can name the OMA output directory using the parameter name='yourNameHere'
 
 Number of jobs to start with cpu=int (Default=4)
+
+Compatibility tested for OMA 2.4.1
+
 """
 import os
 import glob
@@ -118,7 +121,8 @@ def run_oma(
             sp.run(cmd, shell=True)
             cmd = 'rm -r {}'.format(tmp_out)
             sp.run(cmd, shell=True)
-            return outfile
+            new_out = '{}/{}'.format(output, outfile.split('/')[-1])
+            return new_out
 
         elif os.path.isfile(parameters):
             # run OMA
@@ -130,7 +134,8 @@ def run_oma(
             except sp.CalledProcessError:
                 print('# OMA is returning an error:')
                 sys.exit()
-            return tmp_out
+            outfile = glob.glob('{}/Output/PairwiseOrthologs/*'.format(tmp_out))
+            return outfile
         else:
             print('# No valid path to OMA parameters file supplied')
             sys.exit()

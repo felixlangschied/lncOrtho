@@ -5,6 +5,9 @@ Created on Fri Nov 20 14:24:19 2020
 Download a set of genomes from EnsemblDB or NCBI
 based on NCBI accession number or Ensembl genus/species name
 
+USAGE:
+    flavorSavor -i /path/to/IDs2download -o /path/to/output -f flavor
+
 use genome_downloader.py -h for instructions
 """
 
@@ -46,7 +49,7 @@ def extract_ensembl(ids, output, raw_flavor, naming, dir_mode):
                 try:
                     t_location = (
                         'ftp://ftp.ensembl.org/pub/{0}/{1}/{2}/{3}'
-                            .format(direct, id, flavor, target)
+                        .format(direct, id, flavor, target)
                     )
                     os.chdir(output)
                     print('\n# Starting download for {}'.format(id))
@@ -194,7 +197,7 @@ def str2bool(v):
 def main():
     # noinspection PyTypeChecker
     parser = argparse.ArgumentParser(
-        prog='python data_downloader.py',
+        prog='python flavorSavor.py',
         description='Download a set of genomes from EnsemblDB or NCBI '
                     'based on NCBI accession number or Ensembl genus/species name ',
         formatter_class=argparse.RawTextHelpFormatter
@@ -336,9 +339,7 @@ def main():
                 else:
                     print('# No output found for {}. Skipping..'.format(name))
                     continue
-
     print('# Finished')
-
 
 if __name__ == "__main__":
     main()
