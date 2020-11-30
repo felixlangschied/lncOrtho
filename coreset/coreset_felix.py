@@ -158,33 +158,76 @@ def main():
     else:
         cpu = args.threads
 
-    # TODO: include checks for validity of arguments
-    # os.getcwd()
-    # os.chdir(path)
-    # os.path.exists(path)
-    # os.path.isfile(path)
-    # os.path.isdir(path)
-
+    # parse arguments and check vor validity
     mirna_path = args.ncrna
     output = args.output
     query = args.query
     ref_gtf_path = args.reference
     ref_genome = args.genome
-    oma_paths = glob.glob('{}/*'.format(args.pairwise))
-    core_gtf_paths = args.core
+    core_gtf_folder = args.core
     core_fa_paths = args.query
     mgi = args.mgi
+
+    if os.path.isdir(args.pairwise):
+        oma_paths = glob.glob('{}/*'.format(args.pairwise))
+    else:
+        print('# Folder with OMA pairwise orthologs not found\n'
+              '# Check -p argument: {}\n'
+              '# Exiting..'.format(args.pairwise))
+        sys.exit()
+
+    if os.path.isdir(core_gtf_folder):
+        core_gtf_paths = glob.glob('{}/*.gtf'.format(core_gtf_folder))
+        if not core_gtf_paths:
+            print('# No .gtf files found in: {}\n'
+                  'Exiting..'.format(core_gtf_folder))
+            sys.exit()
+    else:
+        print('# Folder with core genome annotations not found\n'
+              '# Check -c argument: {}\n'
+              '# Exiting..'.core_gtf_folder)
+        sys.exit()
 
     # Create output folder if it not already exists
     if not os.path.isdir(output):
         mkdir_cmd = 'mkdir {}'.format(output)
         sp.call(mkdir_cmd, shell=True)
+    elif not os.path.isfile(mirna_path):
+        print('# No valid file with reference miRNAs given.\n'
+              '# Check -n argument: {}\n'
+              '# Exiting..'.format(mirna_path))
+        sys.exit()
+    elif (
+            not os.path.isfile(ref_gtf_path)
+            or ref_gtf_path.split('.')[-1] != 'gtf'
+    ):
+        print('# No valid annotation file for the reference species given (.gtf)\n'
+              '# Check -r argument: {}\n'
+              '# Exiting..'.format(ref_gtf_path))
+        sys.exit()
+    elif (
+        not os.path.isfile(ref_genome)
+        or ref_genome.split('.')[-1] not in ('fa', 'fna')
+    ):
+        print('# No valid genome file of the reference species given (.fa)\n'
+              '# Check -g argument: {}\n'
+              '# Exiting..'.format(ref_genome))
+        sys.exit()
+    elif not os.path.isdir(core_fa_paths):
+        print('# Folder with core genomes no found\n'
+              '# Check -q argument: {}\n'
+              '# Exiting..'.format(core_fa_paths))
+        sys.exit()
+
+
+
+
 
     ###############################################################################
 
     # Parse the pairwise orthologs
     for oma_path in oma_paths:
-        taxon = oma_path.split('/')[-1]
+        taxon = oma_path.split('/')[-1].split('.')[0]
         with open(oma_path, 'r') as oma_file:
             oma_lines = oma_file.readlines()
             orthologs = {
@@ -321,11 +364,11 @@ def main():
                     ###############################################################################
                     print(
                         '{1} is the left neighbor of {2}.'
-                        .format(gene, ref_dict[chromo][gene][0], mirid)
+                            .format(gene, ref_dict[chromo][gene][0], mirid)
                     )
                     print(
                         '{1} is the right neighbor of {2}.'
-                        .format(gene, ref_dict[chromo][gene + 1][0], mirid)
+                            .format(gene, ref_dict[chromo][gene + 1][0], mirid)
                     )
                     left_hits = ortho_search(gene_data[0], ortho_dict)
                     right_hits = (
@@ -465,13 +508,11 @@ def main():
                     else:
                         print(
                             'No shared synteny for {} in {}.'
-                            .format(mirna, taxon)
+                                .format(mirna, taxon)
                         )
         except:
             print('No GTF file found for {}'.format(taxon))
             continue
-
-
 
     def write_fasta():
         for mirna in mirna_dict:
@@ -479,11 +520,15 @@ def main():
                 for core_taxon in mirna_dict[mirna]:
                     outfile.write(
                         '>{0}\n{1}\n'
-                        .format(core_taxon, mirna_dict[mirna][core_taxon])
+                            .format(core_taxon, mirna_dict[mirna][core_taxon])
                     )
 
     # write fasta format output of candidate regions of each miRNA in each core species
     write_fasta()
+
+    if not mirna_dict:
+        print('\n# No hits found. Exiting..')
+        sys.exit()
 
     print('\n#########################')
     print('### Reciprocal BLAST ###')
@@ -497,8 +542,8 @@ def main():
                 'Fasta file with reciprocal hits already exists at:'
                 '{}/{}\n'
                 'Skipping..'
-                .format(output, mirid)
-                  )
+                    .format(output, mirid)
+            )
             continue
         elif os.path.isfile('{0}/{1}/{1}.fa'.format(output, mirid)):
             # calculate and write results of reciprocal BLAST search
@@ -515,11 +560,10 @@ def main():
             outfile.write('\n'.join(noHits))
             outfile.write('\n')
         for fail in noHits:
-            print('this is a fail: {}'.format(fail))
+            #print('this is a fail: {}'.format(fail))
             if os.path.isdir('{0}/{1}'.format(output, fail)):
                 rm_cmd = 'rm -r {0}/{1}'.format(output, fail)
                 sp.call(rm_cmd, shell=True)
-
 
     # Cleanup extra T-coffee files
     run_path = os.getcwd()
@@ -527,7 +571,6 @@ def main():
     for trash in trash_paths:
         sp.call('rm {}'.format(trash), shell=True)
     sp.call('rm {}/alirna.ps'.format(run_path), shell=True)
-
 
     print('\n#########################')
     print('### Creating CMs ###')
@@ -555,12 +598,13 @@ def main():
 
     if notreciproc:
         print('Saving names of ncRNAs that were not the best reciprocal hit at {}/notReciproc.txt'.format(output))
-        with open('{}/notReciproc.txt'.format(output),'w') as outfile:
+        with open('{}/notReciproc.txt'.format(output), 'w') as outfile:
             outfile.write('\n'.join(notreciproc))
             outfile.write('\n')
         for fail in notreciproc:
             rm_cmd = 'rm -r {0}/{1}'.format(output, fail)
             sp.call(rm_cmd, shell=True)
+
 
 if __name__ == '__main__':
     main()
